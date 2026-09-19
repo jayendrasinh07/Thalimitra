@@ -38,6 +38,9 @@ jobs:
       - run: bun run test
       - name: Database integration checks
         run: |
+          # The PostGIS image preloads the extension in public; Supabase installs
+          # extensions in the dedicated extensions schema used by production.
+          psql -v ON_ERROR_STOP=1 -c "DROP EXTENSION IF EXISTS postgis CASCADE; CREATE SCHEMA IF NOT EXISTS extensions; CREATE EXTENSION postgis WITH SCHEMA extensions;"
           psql -v ON_ERROR_STOP=1 -f tests/bootstrap.sql
           for migration in supabase/migrations/*.sql; do
             psql -v ON_ERROR_STOP=1 -f "$migration"
