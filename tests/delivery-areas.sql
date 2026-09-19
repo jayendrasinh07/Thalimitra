@@ -66,7 +66,7 @@ BEGIN
   v_outside := public.check_delivery_serviceability(22.900, 72.100, '000000', 'Outside', 'Outside', 'lunch');
   IF v_inside->>'status' <> 'available'
      OR (v_inside->>'isServiceable')::boolean IS DISTINCT FROM true
-     OR v_inside->>'deliveryFee' <> '12'
+     OR (v_inside->>'deliveryFee')::numeric <> 12
      OR v_inside ? 'boundary' THEN
     RAISE EXCEPTION 'Inside public result is unsafe or incorrect: %', v_inside;
   END IF;
@@ -101,7 +101,7 @@ BEGIN
     RAISE EXCEPTION 'Address trigger did not use polygon source of truth';
   END IF;
   v_quote := public.quote_delivery_address(v_address);
-  IF v_quote->>'deliveryFee' <> '12'
+  IF (v_quote->>'deliveryFee')::numeric <> 12
      OR (v_quote#>>'{services,lunch}')::boolean IS DISTINCT FROM true
      OR (v_quote#>>'{services,breakfast}')::boolean IS DISTINCT FROM false THEN
     RAISE EXCEPTION 'Address quote is incorrect: %', v_quote;
