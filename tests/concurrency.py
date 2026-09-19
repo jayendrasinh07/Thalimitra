@@ -33,7 +33,7 @@ try:
       insert into public.addresses(id,user_id,recipient_name,recipient_phone,area,pincode) values('{address}','{u}','Concurrency test','0000000000','Kudasan','382421');
       insert into public.meals(id,name,meal_type,base_price) values('{meal}','Concurrency test','lunch',119);
       insert into public.menu_days(menu_date,is_published) values('{date}',true) on conflict(menu_date) do nothing;
-      insert into public.menu_items(menu_day_id,meal_id) select id,'{meal}' from public.menu_days where menu_date='{date}';
+      insert into public.menu_items(menu_day_id,meal_id,service_meal_types) select id,'{meal}',array['lunch'] from public.menu_days where menu_date='{date}';
       insert into public.delivery_slots(id,name,meal_type,start_time,end_time,cutoff_time,max_orders) values('{slot}','Concurrency test','lunch','12:00','12:45','10:30',1);
     """)
     results = parallel(lambda key: order(key, True), [str(uuid.uuid4()), str(uuid.uuid4())])
