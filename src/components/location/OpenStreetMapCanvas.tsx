@@ -47,6 +47,7 @@ const VectorMapCanvas: React.FC<OpenStreetMapCanvasProps & { onFailure: () => vo
     if (!containerRef.current) return;
 
     const timeout = window.setTimeout(onFailure, VECTOR_MAP_TIMEOUT_MS);
+    let interactionReady = false;
 
     const map = new MapLibreMap({
       container: containerRef.current,
@@ -66,16 +67,21 @@ const VectorMapCanvas: React.FC<OpenStreetMapCanvasProps & { onFailure: () => vo
     mapRef.current = map;
     map.touchZoomRotate.disableRotation();
     map.on('load', () => {
+      interactionReady = true;
       window.clearTimeout(timeout);
       setIsReady(true);
     });
-    map.on('movestart', () => callbacksRef.current.onMoveStart());
+    map.on('movestart', () => {
+      if (interactionReady) callbacksRef.current.onMoveStart();
+    });
     map.on('moveend', () => {
+      if (!interactionReady) return;
       const next = map.getCenter();
       callbacksRef.current.onMoveEnd({ lat: next.lat, lng: next.lng });
     });
 
     return () => {
+      interactionReady = false;
       window.clearTimeout(timeout);
       mapRef.current = null;
       map.remove();
