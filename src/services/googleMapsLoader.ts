@@ -518,6 +518,25 @@ export function getNearestGandhinagarHub(lat: number, lng: number): LocalPlaceIt
   return closest;
 }
 
+function createLocalCoordinateFallback(lat: number, lng: number): ParsedGoogleAddress {
+  const nearest = getNearestGandhinagarHub(lat, lng);
+  return {
+    placeId: `near-${nearest.id}`,
+    formattedAddress: `Near ${nearest.formattedAddress}`,
+    houseNumber: '',
+    building: '',
+    street: '',
+    area: nearest.area,
+    sector: nearest.sector,
+    city: nearest.city,
+    state: 'Gujarat',
+    pincode: nearest.pincode,
+    latitude: lat,
+    longitude: lng,
+    rawResult: { source: 'local-directory', nearestPlaceId: nearest.id },
+  };
+}
+
 /**
  * Parses Google GeocoderResult address_components into structured fields.
  */
@@ -648,7 +667,7 @@ export async function reverseGeocodeOpenStreetMap(
       signal: controller.signal,
       headers: { 'Accept-Language': 'en' },
     });
-    if (!response.ok) return null;
+    if (!response.ok) return createLocalCoordinateFallback(lat, lng);
     const result = await response.json();
     const address = result?.address ?? {};
     const area = address.suburb || address.neighbourhood || address.quarter || address.village || address.town || address.city_district || '';
@@ -670,7 +689,7 @@ export async function reverseGeocodeOpenStreetMap(
       rawResult: result,
     };
   } catch (_error) {
-    return null;
+    return createLocalCoordinateFallback(lat, lng);
   } finally {
     clearTimeout(timer);
   }

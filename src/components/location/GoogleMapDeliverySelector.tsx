@@ -199,7 +199,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       if (!getGoogleMapsApiKey()) {
         setMapProvider('openstreetmap');
         setIsMapApiLoaded(true);
-        await executeReverseGeocode(mapCenter.lat, mapCenter.lng);
+        void executeReverseGeocode(mapCenter.lat, mapCenter.lng);
         return;
       }
       const maps = await loadGoogleMapsApi();
@@ -287,7 +287,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       setMapProvider('openstreetmap');
       setIsMapApiLoaded(true);
       setMapLoadError(null);
-      await executeReverseGeocode(mapCenter.lat, mapCenter.lng);
+      void executeReverseGeocode(mapCenter.lat, mapCenter.lng);
     } finally {
       setIsInitializingMap(false);
     }
