@@ -604,10 +604,13 @@ export async function reverseGeocodeGoogle(
   lat: number,
   lng: number
 ): Promise<ParsedGoogleAddress | null> {
+  if (!getGoogleMapsApiKey()) {
+    return reverseGeocodeOpenStreetMap(lat, lng);
+  }
   try {
     const googleMaps = await loadGoogleMapsApi();
     if (!googleMaps || !googleMaps.Geocoder) {
-      return null;
+      return reverseGeocodeOpenStreetMap(lat, lng);
     }
 
     const geocoder = new googleMaps.Geocoder();
@@ -628,7 +631,48 @@ export async function reverseGeocodeGoogle(
     return parseGoogleAddressResult(results[0], lat, lng);
   } catch (err) {
     console.warn('[Thalimitra Maps] Google Geocoder reverse lookup failed:', err);
+    return reverseGeocodeOpenStreetMap(lat, lng);
+  }
+}
+
+/** Keyless reverse geocoding fallback used when Google Maps is not configured. */
+export async function reverseGeocodeOpenStreetMap(
+  lat: number,
+  lng: number
+): Promise<ParsedGoogleAddress | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4500);
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&format=jsonv2&addressdetails=1&zoom=18`;
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Accept-Language': 'en' },
+    });
+    if (!response.ok) return null;
+    const result = await response.json();
+    const address = result?.address ?? {};
+    const area = address.suburb || address.neighbourhood || address.quarter || address.village || address.town || address.city_district || '';
+    const city = address.city || address.town || address.municipality || address.county || 'Gandhinagar';
+    const sectorMatch = `${result?.display_name || ''} ${area}`.match(/Sector\s*([0-9]{1,2}[A-Za-z]?)/i);
+    return {
+      placeId: result?.place_id ? `osm-${result.place_id}` : undefined,
+      formattedAddress: result?.display_name || `${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E`,
+      houseNumber: address.house_number || '',
+      building: address.building || address.amenity || address.office || '',
+      street: address.road || address.pedestrian || address.residential || '',
+      area: area || city,
+      sector: sectorMatch ? `Sector ${sectorMatch[1]}` : area,
+      city,
+      state: address.state || 'Gujarat',
+      pincode: address.postcode || '',
+      latitude: lat,
+      longitude: lng,
+      rawResult: result,
+    };
+  } catch (_error) {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -761,7 +805,15 @@ export async function getGooglePlaceDetails(
 ): Promise<ParsedGoogleAddress> {
   // If prediction already has coordinates (from local directory or OSM)
   if (prediction && prediction.latitude && prediction.longitude) {
-    return reverseGeocodeGoogle(prediction.latitude, prediction.longitude);
+    const resolved = await reverseGeocodeGoogle(prediction.latitude, prediction.longitude);
+    if (resolved) return resolved;
+    return {
+      placeId: prediction.placeId,
+      formattedAddress: prediction.description,
+      houseNumber: '', building: '', street: '', area: prediction.mainText,
+      sector: prediction.mainText, city: 'Gandhinagar', state: 'Gujarat', pincode: '',
+      latitude: prediction.latitude, longitude: prediction.longitude,
+    };
   }
 
   // Check local directory
@@ -785,6 +837,7 @@ export async function getGooglePlaceDetails(
   }
 
   // Fallback to Gandhinagar Central or OSM reverse lookup
-  return reverseGeocodeGoogle(23.2156, 72.6369);
+  const fallback = await reverseGeocodeGoogle(23.2156, 72.6369);
+  if (!fallback) throw new Error('Unable to resolve this map location.');
+  return fallback;
 }
-

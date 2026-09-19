@@ -34,14 +34,16 @@ import {
   saveAreaWaitlistEntry,
   CENTRAL_KITCHEN_COORDS
 } from '../../services/locationService';
-import { 
-  loadGoogleMapsApi, 
+import {
+  getGoogleMapsApiKey,
+  loadGoogleMapsApi,
   reverseGeocodeGoogle, 
   searchGooglePlaces, 
   getGooglePlaceDetails,
   ParsedGoogleAddress,
   UnifiedPrediction
 } from '../../services/googleMapsLoader';
+import { OpenStreetMapCanvas } from './OpenStreetMapCanvas';
 
 interface GoogleMapDeliverySelectorProps {
   onClose: () => void;
@@ -73,6 +75,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   const [isMapApiLoaded, setIsMapApiLoaded] = useState<boolean>(false);
   const [mapLoadError, setMapLoadError] = useState<string | null>(null);
   const [isInitializingMap, setIsInitializingMap] = useState<boolean>(true);
+  const [mapProvider, setMapProvider] = useState<'google' | 'openstreetmap'>('google');
 
   // 1. Initial Map Center (separate from user GPS location)
   const initialMapCenterRef = useRef<{ lat: number; lng: number }>(
@@ -150,6 +153,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       const parsed = await reverseGeocodeGoogle(lat, lng);
       // Discard stale out-of-order responses
       if (reqId !== requestIdRef.current) return;
+      if (!parsed) throw new Error('Unable to resolve this location');
 
       setResolvedAddress(parsed);
       
@@ -192,7 +196,14 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
     setMapLoadError(null);
 
     try {
+      if (!getGoogleMapsApiKey()) {
+        setMapProvider('openstreetmap');
+        setIsMapApiLoaded(true);
+        await executeReverseGeocode(mapCenter.lat, mapCenter.lng);
+        return;
+      }
       const maps = await loadGoogleMapsApi();
+      setMapProvider('google');
       setIsMapApiLoaded(true);
 
       if (!mapElementRef.current) return;
@@ -272,8 +283,11 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       // Initial reverse geocode for starting center
       executeReverseGeocode(mapCenter.lat, mapCenter.lng);
     } catch (err: any) {
-      console.error('[Thalimitra Maps] Google Maps initialization failed:', err);
-      setMapLoadError(err?.message || "Google Maps couldn't load.");
+      console.warn('[Thalimitra Maps] Google Maps unavailable; using OpenStreetMap.', err);
+      setMapProvider('openstreetmap');
+      setIsMapApiLoaded(true);
+      setMapLoadError(null);
+      await executeReverseGeocode(mapCenter.lat, mapCenter.lng);
     } finally {
       setIsInitializingMap(false);
     }
@@ -357,6 +371,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
           setIsGeocoding(true);
           const parsed = await reverseGeocodeGoogle(lat, lng);
           if (reqId !== requestIdRef.current) return;
+          if (!parsed) throw new Error('Unable to resolve this location');
 
           setResolvedAddress(parsed);
           console.log('Reverse geocoded address:', parsed.formattedAddress || `${parsed.area}, ${parsed.city}`);
@@ -687,21 +702,42 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
             </div>
           </div>
 
-          {/* REAL GOOGLE MAP CONTAINER */}
+          {/* INTERACTIVE MAP CONTAINER */}
           <div className="flex-1 w-full bg-[#E5E3DF] relative overflow-hidden flex items-center justify-center">
-            
-            {/* Map Canvas div where Google Maps JS mounts */}
-            <div 
-              ref={mapElementRef}
-              className="w-full h-full"
-              style={{ minHeight: '320px' }}
-            />
+
+            {mapProvider === 'google' ? (
+              <div
+                ref={mapElementRef}
+                className="w-full h-full"
+                style={{ minHeight: '320px' }}
+              />
+            ) : (
+              <OpenStreetMapCanvas
+                center={mapCenter}
+                onMoveStart={() => {
+                  isMapMovingRef.current = true;
+                  setIsDraggingMap(true);
+                }}
+                onMoveEnd={coordinates => {
+                  isMapMovingRef.current = false;
+                  setIsDraggingMap(false);
+                  setMapCenter(coordinates);
+
+                  if (geocodeDebounceTimerRef.current) {
+                    clearTimeout(geocodeDebounceTimerRef.current);
+                  }
+                  geocodeDebounceTimerRef.current = setTimeout(() => {
+                    void executeReverseGeocode(coordinates.lat, coordinates.lng);
+                  }, 350);
+                }}
+              />
+            )}
 
             {/* ERROR UI IF GOOGLE MAPS FAILS TO LOAD */}
             {mapLoadError && (
               <div className="absolute inset-0 bg-stone-900/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center text-white">
                 <AlertTriangle className="w-12 h-12 text-amber-400 mb-3" />
-                <h3 className="text-lg font-black">Google Maps couldn't load.</h3>
+                <h3 className="text-lg font-black">Map couldn't load.</h3>
                 <p className="text-xs text-stone-300 max-w-sm mt-1 mb-4 leading-relaxed">
                   {mapLoadError}
                 </p>
@@ -719,7 +755,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
             {isInitializingMap && !mapLoadError && (
               <div className="absolute inset-0 bg-[#E8ECE9] z-20 flex flex-col items-center justify-center text-stone-600 gap-3">
                 <Loader2 className="w-8 h-8 text-[#0D6E44] animate-spin" />
-                <span className="text-xs font-bold tracking-wide">Loading Real Google Map...</span>
+                <span className="text-xs font-bold tracking-wide">Loading delivery map...</span>
               </div>
             )}
 
