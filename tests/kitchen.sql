@@ -15,7 +15,7 @@ BEGIN
  VALUES(owner_id,'Private customer','0000000000','Kudasan','382421') RETURNING id INTO addr;
  INSERT INTO public.meals(name,meal_type,base_price) VALUES('Frozen kitchen thali','lunch',100) RETURNING id INTO meal;
  INSERT INTO public.menu_days(menu_date,is_published) VALUES(d,true) ON CONFLICT(menu_date) DO UPDATE SET is_published=true RETURNING id INTO day;
- INSERT INTO public.menu_items(menu_day_id,meal_id) VALUES(day,meal);
+ INSERT INTO public.menu_items(menu_day_id,meal_id,service_meal_types) VALUES(day,meal,ARRAY['lunch']);
  INSERT INTO public.delivery_slots(name,meal_type,start_time,end_time,cutoff_time,max_orders)
  VALUES('Kitchen test','lunch','12:00','12:45','10:30',20) RETURNING id INTO slot;
  INSERT INTO public.meal_customizations(name,price,meal_id) VALUES('Frozen roti',10,meal) RETURNING id INTO addon;

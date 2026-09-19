@@ -15,7 +15,7 @@ BEGIN
  INSERT INTO public.meals(name,meal_type,base_price) VALUES('Audit meal','both',100) RETURNING id INTO m;
  INSERT INTO public.meals(name,meal_type,base_price) VALUES('Other meal','both',200) RETURNING id INTO othermeal;
  INSERT INTO public.menu_days(menu_date,is_published) VALUES(d,true) ON CONFLICT(menu_date) DO UPDATE SET is_published=true RETURNING id INTO day;
- INSERT INTO public.menu_items(menu_day_id,meal_id) VALUES(day,m);
+ INSERT INTO public.menu_items(menu_day_id,meal_id,service_meal_types) VALUES(day,m,ARRAY['lunch','dinner']);
  INSERT INTO public.delivery_slots(name,meal_type,start_time,end_time,cutoff_time,max_orders) VALUES('Audit slot','lunch','12:00','12:45','10:30',3) RETURNING id INTO slot;
  INSERT INTO public.meal_customizations(name,price,meal_id) VALUES('Valid add-on',15,m) RETURNING id INTO addon;
  INSERT INTO public.meal_customizations(name,price,meal_id) VALUES('Wrong meal add-on',15,othermeal) RETURNING id INTO wrongaddon;

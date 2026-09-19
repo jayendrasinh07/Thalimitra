@@ -5,8 +5,7 @@ import { dietLabel } from '../../services/menuService';
 import { KitchenMenuMeal, KitchenMenuPlan, kitchenMenuService } from '../../services/kitchenMenuService';
 import type { KitchenShift } from '../../services/kitchenService';
 
-const mealBelongsTo = (meal: KitchenMenuMeal, shift: KitchenShift) =>
-  meal.mealType === shift || (shift !== 'breakfast' && meal.mealType === 'both');
+const mealBelongsTo = (meal: KitchenMenuMeal, shift: KitchenShift) => meal.serviceMealType === shift;
 
 const formatUpdatedAt = (value: string | null) => value
   ? new Date(value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
@@ -23,7 +22,7 @@ export const KitchenMenuPlanner: React.FC = () => {
   const menuDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addCalendarDays(today, index)), [today]);
   const [date, setDate] = useState(today);
   const [plan, setPlan] = useState<KitchenMenuPlan | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<'draft' | 'publish' | null>(null);
   const [error, setError] = useState('');
@@ -39,11 +38,11 @@ export const KitchenMenuPlanner: React.FC = () => {
       const next = await kitchenMenuService.get(menuDate);
       if (request.current !== current) return;
       setPlan(next);
-      setSelectedIds(next.meals.filter(meal => meal.selected).map(meal => meal.id));
+      setSelectedKeys(next.meals.filter(meal => meal.selected).map(meal => meal.selectionKey));
     } catch (caught) {
       if (request.current === current) {
         setPlan(null);
-        setSelectedIds([]);
+        setSelectedKeys([]);
         setError((caught as Error).message);
       }
     } finally {
@@ -56,16 +55,15 @@ export const KitchenMenuPlanner: React.FC = () => {
     return () => { request.current += 1; };
   }, [date]);
 
-  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const hasLunch = plan?.meals.some(meal => selected.has(meal.id) && mealBelongsTo(meal, 'lunch')) ?? false;
-  const hasDinner = plan?.meals.some(meal => selected.has(meal.id) && mealBelongsTo(meal, 'dinner')) ?? false;
-  const dirty = plan ? plan.meals.some(meal => meal.selected !== selected.has(meal.id)) : false;
+  const selected = useMemo(() => new Set(selectedKeys), [selectedKeys]);
+  const hasSelection = selectedKeys.length > 0;
+  const dirty = plan ? plan.meals.some(meal => meal.selected !== selected.has(meal.selectionKey)) : false;
 
-  const toggle = (mealId: string) => {
+  const toggle = (selectionKey: string) => {
     if (saving || plan?.isLocked) return;
-    setSelectedIds(current => current.includes(mealId)
-      ? current.filter(id => id !== mealId)
-      : [...current, mealId]);
+    setSelectedKeys(current => current.includes(selectionKey)
+      ? current.filter(key => key !== selectionKey)
+      : [...current, selectionKey]);
     setNotice('');
   };
 
@@ -74,9 +72,12 @@ export const KitchenMenuPlanner: React.FC = () => {
     setError('');
     setNotice('');
     try {
-      const next = await kitchenMenuService.save(date, selectedIds, publish);
+      const selections = (plan?.meals ?? [])
+        .filter(meal => selected.has(meal.selectionKey))
+        .map(meal => ({ mealId: meal.id, serviceMealType: meal.serviceMealType }));
+      const next = await kitchenMenuService.save(date, selections, publish);
       setPlan(next);
-      setSelectedIds(next.meals.filter(meal => meal.selected).map(meal => meal.id));
+      setSelectedKeys(next.meals.filter(meal => meal.selected).map(meal => meal.selectionKey));
       setNotice(publish ? 'Menu published. Customers can now order these meals.' : 'Draft saved. Customers cannot see it yet.');
     } catch (caught) {
       setError((caught as Error).message);
@@ -141,12 +142,12 @@ export const KitchenMenuPlanner: React.FC = () => {
                   <h3 className="text-lg font-black capitalize text-stone-900">{shift}</h3>
                   <p className="text-xs text-stone-500">Select one or more meals</p>
                 </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-stone-600">{plan?.meals.filter(meal => mealBelongsTo(meal, shift) && selected.has(meal.id)).length ?? 0} selected</span>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-stone-600">{plan?.meals.filter(meal => mealBelongsTo(meal, shift) && selected.has(meal.selectionKey)).length ?? 0} selected</span>
               </div>
               <div className="space-y-3">
                 {plan?.meals.filter(meal => mealBelongsTo(meal, shift)).map(meal => {
-                  const checked = selected.has(meal.id);
-                  return <button key={meal.id} type="button" role="checkbox" aria-checked={checked} onClick={() => toggle(meal.id)} disabled={!!saving || plan.isLocked}
+                  const checked = selected.has(meal.selectionKey);
+                  return <button key={meal.selectionKey} type="button" role="checkbox" aria-checked={checked} onClick={() => toggle(meal.selectionKey)} disabled={!!saving || plan.isLocked}
                     className={`flex min-h-24 w-full items-start gap-3 rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${checked ? 'border-[#0D6E44] bg-emerald-50' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
                     <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${checked ? 'border-[#0D6E44] bg-[#0D6E44] text-white' : 'border-stone-300 bg-white'}`}>{checked && <Check size={14} />}</span>
                     <span className="min-w-0 flex-1">
@@ -163,13 +164,13 @@ export const KitchenMenuPlanner: React.FC = () => {
       )}
 
       <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/95 p-4 shadow-lg backdrop-blur">
-        <p className="text-xs text-stone-600">Breakfast is optional during rollout. Publishing still requires lunch and dinner; the menu locks after the first order.</p>
+        <p className="text-xs text-stone-600">Publish any one service or combine multiple services. Lunch and dinner selections stay independent; the menu locks after the first order.</p>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void save(false)} disabled={!!saving || loading || !!plan?.isLocked || (!dirty && !plan?.isPublished)}
             className="min-h-11 rounded-xl border border-stone-300 px-5 text-sm font-bold text-stone-700 disabled:opacity-40">
             {saving === 'draft' ? 'Saving…' : 'Save draft'}
           </button>
-          <button type="button" onClick={() => void save(true)} disabled={!!saving || loading || !!plan?.isLocked || !hasLunch || !hasDinner || (!dirty && !!plan?.isPublished)}
+          <button type="button" onClick={() => void save(true)} disabled={!!saving || loading || !!plan?.isLocked || !hasSelection || (!dirty && !!plan?.isPublished)}
             className="flex min-h-11 items-center gap-2 rounded-xl bg-[#0D6E44] px-5 text-sm font-black text-white disabled:opacity-40">
             <Send size={16} /> {saving === 'publish' ? 'Publishing…' : plan?.isPublished ? 'Update published menu' : 'Publish to customers'}
           </button>

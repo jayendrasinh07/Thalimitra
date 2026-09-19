@@ -5,12 +5,12 @@ export interface DatabaseMeal { id:string; name:string; description:string; imag
 export interface DatabaseMealCustomization { id:string; mealId?:string|null; name:string; description?:string; price:number; isActive:boolean; }
 export interface DatabaseDeliverySlot { id:string; name:string; mealType:ServiceMealType; startTime:string; endTime:string; maxOrders:number; cutoffTime?:string|null; isActive:boolean; }
 export interface DatabaseDayMenu { id:string; menuDate:string; isPublished:boolean; meals:DatabaseMeal[]; }
-const meal = (r:any):DatabaseMeal => ({id:r.id,name:r.name,description:r.description??'',imageUrl:r.image_url??undefined,mealType:r.meal_type,dietType:r.diet_type,basePrice:Number(r.base_price),isActive:r.is_active});
+const meal = (r:any, serviceMealType?:ServiceMealType):DatabaseMeal => ({id:r.id,name:r.name,description:r.description??'',imageUrl:r.image_url??undefined,mealType:serviceMealType??r.meal_type,dietType:r.diet_type,basePrice:Number(r.base_price),isActive:r.is_active});
 export const dietLabel = (value:string) => ({standard_gujarati:'Standard Gujarati',jain_satvik:'Jain Satvik',kathiyawadi:'Kathiyawadi',low_oil_fit:'Low Oil Fit',north_indian:'North Indian'}[value]??value);
 export const formatSlotTime = (time:string) => { const [h,m]=time.split(':').map(Number); return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; };
 export const mapDeliverySlot = (r:any):DeliverySlot => ({id:r.id,mealSlot:r.meal_type,windowLabel:`${formatSlotTime(r.start_time)} – ${formatSlotTime(r.end_time)}`,startTime:r.start_time,endTime:r.end_time,maxCapacity:Number(r.max_orders),bookedCount:Number(r.booked_portions)});
 export const menuService = {
- async getActiveMeals():Promise<DatabaseMeal[]> { const {data,error}=await getSupabaseClient().from('meals').select('*').eq('is_active',true).order('name'); if(error)throw error; return (data??[]).map(meal); },
+ async getActiveMeals():Promise<DatabaseMeal[]> { const {data,error}=await getSupabaseClient().from('meals').select('*').eq('is_active',true).order('name'); if(error)throw error; return (data??[]).map(row=>meal(row)); },
  async getMealCustomizations(mealId?:string):Promise<DatabaseMealCustomization[]> {
   if(!mealId)return [];
   const {data,error}=await getSupabaseClient().from('meal_customizations').select('*').eq('is_active',true).or(`meal_id.is.null,meal_id.eq.${mealId}`).order('price');
@@ -32,14 +32,14 @@ export const menuService = {
   const {data:days,error}=await client.from('menu_days').select('id,menu_date,is_published').in('menu_date',uniqueDates).eq('is_published',true);
   if(error)throw error;
   if(!days?.length)return empty;
-  const {data:items,error:itemError}=await client.from('menu_items').select('menu_day_id,meal_id,availability,display_order,meals(*)').in('menu_day_id',days.map((day:any)=>day.id)).eq('availability',true).order('display_order');
+  const {data:items,error:itemError}=await client.from('menu_items').select('menu_day_id,meal_id,service_meal_types,availability,display_order,meals(*)').in('menu_day_id',days.map((day:any)=>day.id)).eq('availability',true).order('display_order');
   if(itemError)throw itemError;
   for(const day of days){
    empty[day.menu_date]={
     id:day.id,
     menuDate:day.menu_date,
     isPublished:day.is_published,
-    meals:(items??[]).filter((item:any)=>item.menu_day_id===day.id&&item.meals?.is_active).map((item:any)=>meal(item.meals))
+    meals:(items??[]).filter((item:any)=>item.menu_day_id===day.id&&item.meals?.is_active).flatMap((item:any)=>(item.service_meal_types??[]).map((serviceMealType:ServiceMealType)=>meal(item.meals,serviceMealType)))
    };
   }
   return empty;

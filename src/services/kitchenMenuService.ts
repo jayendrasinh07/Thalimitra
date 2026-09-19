@@ -4,12 +4,19 @@ export type KitchenMenuMealType = 'breakfast' | 'lunch' | 'dinner' | 'both';
 
 export interface KitchenMenuMeal {
   id: string;
+  selectionKey: string;
   name: string;
   description: string;
   mealType: KitchenMenuMealType;
+  serviceMealType: Exclude<KitchenMenuMealType, 'both'>;
   dietType: string;
   basePrice: number;
   selected: boolean;
+}
+
+export interface KitchenMenuSelection {
+  mealId: string;
+  serviceMealType: Exclude<KitchenMenuMealType, 'both'>;
 }
 
 export interface KitchenMenuPlan {
@@ -37,6 +44,8 @@ export class KitchenMenuError extends Error {
 
 const isMealType = (value: unknown): value is KitchenMenuMealType =>
   value === 'breakfast' || value === 'lunch' || value === 'dinner' || value === 'both';
+const isServiceMealType = (value: unknown): value is Exclude<KitchenMenuMealType, 'both'> =>
+  value === 'breakfast' || value === 'lunch' || value === 'dinner';
 
 export function parseKitchenMenu(value: unknown): KitchenMenuPlan {
   const plan = value as any;
@@ -47,17 +56,20 @@ export function parseKitchenMenu(value: unknown): KitchenMenuPlan {
   }
 
   const meals: KitchenMenuMeal[] = plan.meals.map((row: any) => {
-    if (!row || typeof row.id !== 'string' || typeof row.name !== 'string'
+    if (!row || typeof row.id !== 'string' || typeof row.selection_key !== 'string' || typeof row.name !== 'string'
       || !(row.description === null || typeof row.description === 'string') || !isMealType(row.meal_type)
+      || !isServiceMealType(row.service_meal_type)
       || typeof row.diet_type !== 'string' || !Number.isFinite(Number(row.base_price))
       || typeof row.selected !== 'boolean') {
       throw new KitchenMenuError('INVALID_RESPONSE');
     }
     return {
       id: row.id,
+      selectionKey: row.selection_key,
       name: row.name,
       description: row.description ?? '',
       mealType: row.meal_type,
+      serviceMealType: row.service_meal_type,
       dietType: row.diet_type,
       basePrice: Number(row.base_price),
       selected: row.selected,
@@ -82,12 +94,13 @@ export const kitchenMenuService = {
     return parseKitchenMenu(data);
   },
 
-  async save(date: string, mealIds: string[], publish: boolean): Promise<KitchenMenuPlan> {
-    const uniqueIds = [...new Set(mealIds)];
-    if (uniqueIds.length !== mealIds.length) throw new KitchenMenuError('22023', 'A meal can only be selected once.');
+  async save(date: string, selections: KitchenMenuSelection[], publish: boolean): Promise<KitchenMenuPlan> {
+    const uniqueKeys = new Set(selections.map(selection => `${selection.mealId}:${selection.serviceMealType}`));
+    if (uniqueKeys.size !== selections.length) throw new KitchenMenuError('22023', 'A meal can only be selected once per service.');
     const { data, error } = await getSupabaseClient().rpc('save_kitchen_menu', {
       p_menu_date: date,
-      p_meal_ids: uniqueIds,
+      p_meal_ids: selections.map(selection => selection.mealId),
+      p_service_meal_types: selections.map(selection => selection.serviceMealType),
       p_publish: publish,
     });
     if (error) throw toError(error);
