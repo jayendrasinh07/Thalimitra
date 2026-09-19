@@ -132,8 +132,11 @@ export async function verifySupabaseDatabaseStatus(): Promise<{
   };
 
   try {
-    // Test delivery_zones as baseline read test
-    const { data: zonesData, error: zonesErr } = await client.from('delivery_zones').select('id').limit(1);
+    // Use the public-safe RPC; delivery area rows and admin metadata are private.
+    const { error: zonesErr } = await client.rpc('check_delivery_serviceability', {
+      p_latitude: 23.2156, p_longitude: 72.6369,
+      p_pincode: null, p_area: null, p_sector: null, p_meal_type: null,
+    });
     if (!zonesErr) {
       results.connected = true;
       results.phase1Tables.delivery_zones = true;

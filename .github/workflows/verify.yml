@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgis/postgis:17-3.5
         env:
           POSTGRES_PASSWORD: local_test_only
         ports: ['5432:5432']
@@ -45,6 +45,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/ordering.sql
           psql -v ON_ERROR_STOP=1 -f tests/kitchen.sql
           psql -v ON_ERROR_STOP=1 -f tests/management.sql
+          psql -v ON_ERROR_STOP=1 -f tests/delivery-areas.sql
           psql -v ON_ERROR_STOP=1 -f tests/analytics.sql
           psql -v ON_ERROR_STOP=1 -f tests/support.sql
           python3 tests/concurrency.py

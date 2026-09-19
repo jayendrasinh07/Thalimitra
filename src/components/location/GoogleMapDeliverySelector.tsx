@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Search, 
-  Crosshair, 
-  MapPin, 
-  Building2, 
-  Home, 
-  GraduationCap, 
-  Clock, 
-  Truck, 
-  ShieldCheck, 
+import {
+  Search,
+  Crosshair,
+  MapPin,
+  Building2,
+  Home,
+  GraduationCap,
+  Clock,
+  Truck,
+  ShieldCheck,
   ChevronRight,
   Bell,
   ArrowRight,
@@ -22,28 +22,29 @@ import {
   Info
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { 
-  DeliveryAddress, 
-  AddressLabel, 
+import {
+  DeliveryAddress,
+  AddressLabel,
   DeliveryInstructionPreset,
-  DetectedLocation, 
+  DetectedLocation,
   LocationSource
 } from '../../types';
-import { 
-  evaluateLocationServiceability, 
+import {
+  evaluateLocationServiceability,
   saveAreaWaitlistEntry,
   CENTRAL_KITCHEN_COORDS
 } from '../../services/locationService';
 import {
   getGoogleMapsApiKey,
   loadGoogleMapsApi,
-  reverseGeocodeGoogle, 
-  searchGooglePlaces, 
+  reverseGeocodeGoogle,
+  searchGooglePlaces,
   getGooglePlaceDetails,
   ParsedGoogleAddress,
   UnifiedPrediction
 } from '../../services/googleMapsLoader';
 import { OpenStreetMapCanvas } from './OpenStreetMapCanvas';
+import { checkCoordinateServiceability, type CoordinateServiceability } from '../../services/serviceabilityService';
 
 interface GoogleMapDeliverySelectorProps {
   onClose: () => void;
@@ -56,14 +57,14 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   onAddressConfirmed,
   initialCoords
 }) => {
-  const { 
+  const {
     centralLocation,
     activeDeliveryAddress,
     savedAddresses,
     detectUserLocation,
     selectDeliveryAddress,
     saveDeliveryAddress,
-    showToast 
+    showToast
   } = useApp();
 
   // Container ref for the real Google Maps canvas element
@@ -107,6 +108,9 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
 
   // 5. Address resolved from Geocoder
   const [resolvedAddress, setResolvedAddress] = useState<ParsedGoogleAddress | null>(null);
+  const [serverAvailability, setServerAvailability] = useState<CoordinateServiceability | null>(null);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
 
   // Search input & Google Places autocomplete
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -143,12 +147,49 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   const geocodeDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const searchDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const refreshServiceability = useCallback(async (lat: number, lng: number, address: ParsedGoogleAddress, reqId: number) => {
+    setIsCheckingAvailability(true);
+    setAvailabilityError(null);
+    try {
+      const result = await checkCoordinateServiceability({
+        latitude: lat, longitude: lng, pincode: address.pincode,
+        area: address.area, sector: address.sector,
+      });
+      if (reqId !== requestIdRef.current) return;
+      setServerAvailability(result);
+    } catch (cause) {
+      if (reqId !== requestIdRef.current) return;
+      const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : '';
+      if (['PGRST202', '42883'].includes(code)) {
+        const legacy = evaluateLocationServiceability(lat, lng, address.area, address.city, address.pincode);
+        setServerAvailability({
+          status: legacy.isServiceable ? 'available' : 'unavailable',
+          isServiceable: legacy.isServiceable, areaId: legacy.zoneId || null,
+          areaName: legacy.areaName, deliveryFee: legacy.deliveryFee,
+          minOrderAmount: legacy.zone?.minOrderAmount || 0,
+          estimatedDurationMinutes: legacy.zone?.estimatedDurationMinutes || null,
+          waitlistEnabled: true,
+          services: { breakfast: legacy.isServiceable, lunch: legacy.isServiceable, dinner: legacy.isServiceable },
+          message: legacy.message,
+        });
+      } else {
+        setServerAvailability(null);
+        setAvailabilityError('Delivery availability could not be confirmed. Please try again.');
+      }
+      console.error('[Thalimitra Maps] Serviceability check failed:', cause);
+    } finally {
+      if (reqId === requestIdRef.current) setIsCheckingAvailability(false);
+    }
+  }, []);
+
   // ----------------------------------------------------
   // 1. REVERSE GEOCODING (SAFE SEQUENCE TRACKED)
   // ----------------------------------------------------
   const executeReverseGeocode = useCallback(async (lat: number, lng: number) => {
     const reqId = ++requestIdRef.current;
     setIsGeocoding(true);
+    setServerAvailability(null);
+    setAvailabilityError(null);
     try {
       const parsed = await reverseGeocodeGoogle(lat, lng);
       // Discard stale out-of-order responses
@@ -156,7 +197,8 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       if (!parsed) throw new Error('Unable to resolve this location');
 
       setResolvedAddress(parsed);
-      
+      await refreshServiceability(lat, lng, parsed, reqId);
+
       // If Google provides house number / building, autofill only if user hasn't edited
       if (parsed.houseNumber && !houseNumber) {
         setHouseNumber(parsed.houseNumber);
@@ -168,8 +210,8 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       if (reqId !== requestIdRef.current) return;
       console.error('[Thalimitra Maps] Reverse geocoding error:', err);
       // Clean fallback object without inventing fake locations
-      setResolvedAddress({
-        formattedAddress: `${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E`,
+      const fallback: ParsedGoogleAddress = {
+        formattedAddress: `${lat.toFixed(5)}Â° N, ${lng.toFixed(5)}Â° E`,
         houseNumber: '',
         building: '',
         street: '',
@@ -180,13 +222,15 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
         pincode: '',
         latitude: lat,
         longitude: lng
-      });
+      };
+      setResolvedAddress(fallback);
+      await refreshServiceability(lat, lng, fallback, reqId);
     } finally {
       if (reqId === requestIdRef.current) {
         setIsGeocoding(false);
       }
     }
-  }, [houseNumber, building]);
+  }, [houseNumber, building, refreshServiceability]);
 
   // ----------------------------------------------------
   // 2. INITIALIZE REAL GOOGLE MAP
@@ -374,6 +418,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
           if (!parsed) throw new Error('Unable to resolve this location');
 
           setResolvedAddress(parsed);
+          await refreshServiceability(lat, lng, parsed, reqId);
           console.log('Reverse geocoded address:', parsed.formattedAddress || `${parsed.area}, ${parsed.city}`);
 
           const serviceability = evaluateLocationServiceability(
@@ -481,6 +526,9 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       const details = await getGooglePlaceDetails(prediction.placeId, prediction);
       setMapCenter({ lat: details.latitude, lng: details.longitude });
       setResolvedAddress(details);
+      const reqId = ++requestIdRef.current;
+      setServerAvailability(null);
+      await refreshServiceability(details.latitude, details.longitude, details, reqId);
 
       // Move real Google Map to place coordinates
       if (googleMapInstanceRef.current) {
@@ -513,16 +561,28 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   // ----------------------------------------------------
   // 6. SERVICEABILITY & FINAL CONFIRMATION
   // ----------------------------------------------------
-  const serviceabilityResult = evaluateLocationServiceability(
-    mapCenter.lat,
-    mapCenter.lng,
-    resolvedAddress?.area,
-    resolvedAddress?.city,
-    resolvedAddress?.pincode
-  );
+  const localFallback = evaluateLocationServiceability(mapCenter.lat, mapCenter.lng, resolvedAddress?.area, resolvedAddress?.city, resolvedAddress?.pincode);
+  const serviceabilityResult = serverAvailability ? {
+    ...localFallback,
+    isServiceable: serverAvailability.isServiceable,
+    status: serverAvailability.status,
+    zoneId: serverAvailability.areaId || 'unserviceable',
+    areaName: serverAvailability.areaName,
+    sectorOrZone: serverAvailability.areaName,
+    clusterId: serverAvailability.areaId || '',
+    clusterName: serverAvailability.areaName,
+    deliveryFee: serverAvailability.deliveryFee,
+    minOrderAmount: serverAvailability.minOrderAmount,
+    estimatedDurationMinutes: serverAvailability.estimatedDurationMinutes,
+    waitlistEnabled: serverAvailability.waitlistEnabled,
+    services: serverAvailability.services,
+    message: serverAvailability.message,
+  } : { ...localFallback, isServiceable: false, status: 'unavailable' as const,
+    zoneId: 'unserviceable', deliveryFee: 0,
+    message: availabilityError || 'Checking the exact delivery boundaryâ€¦' };
 
   const handleInitiateConfirmLocation = () => {
-    if (!resolvedAddress) return;
+    if (!resolvedAddress || isCheckingAvailability || availabilityError) return;
     setCurrentStep('serviceability_result');
   };
 
@@ -614,7 +674,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
 
   return (
     <div className="flex flex-col h-full bg-[#FAF8F5] text-stone-900 rounded-none sm:rounded-3xl overflow-hidden shadow-2xl relative select-none">
-      
+
       {/* ----------------------------------------------------
           MODAL HEADER
       ---------------------------------------------------- */}
@@ -647,7 +707,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       ---------------------------------------------------- */}
       {currentStep === 'map_selection' && (
         <div className="flex-1 flex flex-col relative overflow-hidden">
-          
+
           {/* SEARCH OVERLAY */}
           <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 z-20 max-w-xl mx-auto">
             <div className="relative">
@@ -663,11 +723,11 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                 />
                 {isSearchingPlaces && <Loader2 className="w-4 h-4 text-emerald-600 animate-spin shrink-0" />}
                 {searchQuery && (
-                  <button 
+                  <button
                     onClick={() => { setSearchQuery(''); setShowSearchDropdown(false); }}
                     className="text-stone-400 hover:text-stone-600 text-xs p-1 cursor-pointer"
                   >
-                    ✕
+                    âœ•
                   </button>
                 )}
               </div>
@@ -764,7 +824,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
             ---------------------------------------------------- */}
             {!mapLoadError && (
               <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-10 flex flex-col items-center">
-                
+
                 {/* Tooltip banner above pin */}
                 <div className={`mb-2 px-3 py-1.5 rounded-full bg-stone-900/90 text-white text-[11px] font-bold shadow-xl border border-stone-700 flex items-center gap-1.5 transition-all duration-150 ${
                   isDraggingMap ? 'opacity-90 scale-105 -translate-y-1' : 'opacity-100 scale-100'
@@ -808,7 +868,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                   <span className="font-medium">
-                    {gpsAccuracyWarning} {gpsAccuracy ? `(±${Math.round(gpsAccuracy)}m)` : ''}
+                    {gpsAccuracyWarning} {gpsAccuracy ? `(Â±${Math.round(gpsAccuracy)}m)` : ''}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
@@ -911,7 +971,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
           ---------------------------------------------------- */}
           <div className="p-4 sm:p-5 bg-white border-t border-stone-200 shadow-lg z-20 shrink-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              
+
               {/* Address Readout */}
               <div className="flex items-start gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#0D6E44] flex items-center justify-center shrink-0 mt-0.5">
@@ -922,12 +982,12 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                     <span>Deliver to this location</span>
                     {locationSource === 'gps' && gpsAccuracy !== null && gpsAccuracy < 500 && (
                       <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] font-bold">
-                        GPS Verified (±{Math.round(gpsAccuracy)}m)
+                        GPS Verified (Â±{Math.round(gpsAccuracy)}m)
                       </span>
                     )}
                     {locationSource === 'gps' && gpsAccuracy !== null && gpsAccuracy >= 500 && (
                       <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">
-                        Approximate GPS (±{Math.round(gpsAccuracy)}m)
+                        Approximate GPS (Â±{Math.round(gpsAccuracy)}m)
                       </span>
                     )}
                   </div>
@@ -935,13 +995,13 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                   <div className="text-sm sm:text-base font-black text-stone-900 truncate">
                     {locationStatus === 'detecting'
                       ? 'Detecting exact GPS doorstep...'
-                      : resolvedAddress?.formattedAddress || `${mapCenter.lat.toFixed(5)}° N, ${mapCenter.lng.toFixed(5)}° E`}
+                      : resolvedAddress?.formattedAddress || `${mapCenter.lat.toFixed(5)}Â° N, ${mapCenter.lng.toFixed(5)}Â° E`}
                   </div>
 
                   <div className="text-xs text-stone-500 truncate mt-0.5">
                     {locationStatus === 'detecting'
                       ? 'Requesting high-accuracy browser coordinates...'
-                      : resolvedAddress?.city 
+                      : resolvedAddress?.city
                       ? `${resolvedAddress.area || ''}${resolvedAddress.area ? ', ' : ''}${resolvedAddress.city} ${resolvedAddress.pincode || ''}`
                       : 'Doorstep location selected on Google Map'}
                   </div>
@@ -953,13 +1013,13 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                 <button
                   id="confirm-map-location-btn"
                   onClick={handleInitiateConfirmLocation}
-                  disabled={isGeocoding || isGpsLocating}
+                  disabled={isGeocoding || isGpsLocating || isCheckingAvailability || !!availabilityError}
                   className="px-7 py-3 rounded-2xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-sm sm:text-base font-black shadow-lg shadow-emerald-950/15 hover:shadow-xl transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {isGeocoding || isGpsLocating ? (
+                  {isGeocoding || isGpsLocating || isCheckingAvailability ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                      <span>{isGpsLocating ? 'Locating...' : 'Resolving...'}</span>
+                      <span>{isGpsLocating ? 'Locating...' : isCheckingAvailability ? 'Checking deliveryâ€¦' : 'Resolving...'}</span>
                     </>
                   ) : (
                     <>
@@ -968,6 +1028,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                     </>
                   )}
                 </button>
+                {availabilityError && <button type="button" onClick={() => resolvedAddress && void refreshServiceability(mapCenter.lat, mapCenter.lng, resolvedAddress, ++requestIdRef.current)} className="mt-2 text-xs font-bold text-red-700 underline underline-offset-4">Retry delivery check</button>}
                 <span className="text-[11px] text-stone-400 mt-1 text-center sm:text-right">
                   Proceed to doorstep & service check
                 </span>
@@ -982,7 +1043,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       ---------------------------------------------------- */}
       {currentStep === 'serviceability_result' && (
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
+
           {/* Top Location Summary Card */}
           <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -993,7 +1054,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                 <div className="text-xs font-bold text-stone-500 uppercase tracking-wider">Selected Location</div>
                 <div className="text-base font-black text-stone-900">{resolvedAddress?.formattedAddress}</div>
                 <div className="text-xs text-stone-500">
-                  {mapCenter.lat.toFixed(5)}° N, {mapCenter.lng.toFixed(5)}° E
+                  {mapCenter.lat.toFixed(5)}Â° N, {mapCenter.lng.toFixed(5)}Â° E
                 </div>
               </div>
             </div>
@@ -1009,15 +1070,15 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
           {/* SERVICEABLE FLOW */}
           {serviceabilityResult.isServiceable ? (
             <div className="space-y-6">
-              
+
               {/* Delivery Availability Badge */}
               <div className="p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 flex items-start gap-3.5">
                 <CheckCircle2 className="w-6 h-6 text-[#0D6E44] shrink-0 mt-0.5" />
                 <div>
                   <div className="text-base font-black text-emerald-950 flex items-center gap-2">
-                    <span>Thalimitra delivers here ✓</span>
+                    <span>Thalimitra delivers here âœ“</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold">
-                      {serviceabilityResult.deliveryFee === 0 ? 'Free Delivery' : `₹${serviceabilityResult.deliveryFee} Express`}
+                      {serviceabilityResult.deliveryFee === 0 ? 'Free Delivery' : `â‚¹${serviceabilityResult.deliveryFee} Express`}
                     </span>
                   </div>
                   <p className="text-xs text-emerald-800 mt-1">
@@ -1026,29 +1087,19 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                 </div>
               </div>
 
-              {/* Available Delivery Slots */}
+              {/* Area-level meal services. Date/menu/capacity are checked during ordering. */}
               <div className="bg-white p-5 rounded-2xl border border-stone-200 space-y-3">
                 <div className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-[#0D6E44]" />
-                  <span>Available Delivery Windows for Today</span>
+                  <span>Meal services in this area</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-center">
-                    <div className="text-[10px] uppercase font-bold text-stone-500">Lunch Slot 1</div>
-                    <div className="text-xs font-black text-stone-900 mt-0.5">12:30 PM – 1:00 PM</div>
-                    <span className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.2 rounded-full">Available</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-center">
-                    <div className="text-[10px] uppercase font-bold text-stone-500">Lunch Slot 2</div>
-                    <div className="text-xs font-black text-stone-900 mt-0.5">1:00 PM – 1:30 PM</div>
-                    <span className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.2 rounded-full">Available</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-center">
-                    <div className="text-[10px] uppercase font-bold text-stone-500">Dinner Slot</div>
-                    <div className="text-xs font-black text-stone-900 mt-0.5">7:30 PM – 8:30 PM</div>
-                    <span className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.2 rounded-full">Available</span>
-                  </div>
+                  {(['breakfast', 'lunch', 'dinner'] as const).map(service => {
+                    const available = serviceabilityResult.services?.[service] ?? false;
+                    return <div key={service} className={`rounded-xl border p-3 text-center ${available ? 'border-emerald-200 bg-emerald-50' : 'border-stone-200 bg-stone-50'}`}><div className="text-[10px] font-bold uppercase text-stone-500">{service}</div><span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${available ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-500'}`}>{available ? 'Area available' : 'Not served here'}</span></div>;
+                  })}
                 </div>
+                <p className="text-[11px] text-stone-500">Exact date, published menu, cutoff and remaining capacity are confirmed when you order.</p>
               </div>
 
               {/* Doorstep Details Form */}
@@ -1211,7 +1262,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                   <XCircle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
                   <div>
                     <h3 className="text-base font-black text-stone-900">
-                      We're not delivering to this location yet.
+                      {serviceabilityResult.status === 'coming_soon' ? 'Thalimitra is coming soon here.' : "We're not delivering to this location yet."}
                     </h3>
                     <p className="text-xs text-stone-600 mt-1 leading-relaxed">
                       {serviceabilityResult.message}
@@ -1221,7 +1272,9 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
               </div>
 
               {/* Waitlist Form */}
-              {!waitlistSubmitted ? (
+              {serviceabilityResult.waitlistEnabled === false ? (
+                <div className="rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-600">Please choose another address. Waitlist registration is currently paused for this area.</div>
+              ) : !waitlistSubmitted ? (
                 <form onSubmit={handleJoinWaitlist} className="bg-white p-5 rounded-2xl border border-stone-200 space-y-4">
                   <div className="flex items-center gap-2 text-stone-900 font-black text-sm">
                     <Bell className="w-4 h-4 text-amber-600" />

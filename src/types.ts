@@ -426,7 +426,7 @@ export interface DeliveryAddress {
   isDefault: boolean;
   clusterId: string;
   clusterName?: string;
-  zoneId?: 'zone_a_core' | 'zone_b_extended' | 'zone_c_periphery' | 'unserviceable';
+  zoneId?: string;
   deliveryFee?: number;
   isServiceable: boolean;
   createdAt?: string;
@@ -434,7 +434,7 @@ export interface DeliveryAddress {
 }
 
 export interface DeliveryZone {
-  id: 'zone_a_core' | 'zone_b_extended' | 'zone_c_periphery';
+  id: string;
   name: string;
   tagline: string;
   description: string;
@@ -449,7 +449,12 @@ export interface DeliveryZone {
 export interface ServiceabilityResult {
   isServiceable: boolean;
   zone?: DeliveryZone;
-  zoneId?: 'zone_a_core' | 'zone_b_extended' | 'zone_c_periphery' | 'unserviceable';
+  zoneId?: string;
+  status?: 'available' | 'coming_soon' | 'unavailable';
+  services?: { breakfast: boolean; lunch: boolean; dinner: boolean };
+  minOrderAmount?: number;
+  estimatedDurationMinutes?: number | null;
+  waitlistEnabled?: boolean;
   areaName: string;
   sectorOrZone: string;
   city: string;
@@ -534,7 +539,7 @@ export interface CentralLocationState {
   landmark?: string;
   formattedAddress: string;
   serviceable: boolean;
-  deliveryZoneId: 'zone_a_core' | 'zone_b_extended' | 'zone_c_periphery' | 'unserviceable';
+  deliveryZoneId: string;
   deliveryFee: number;
   isAddressConfirmed: boolean;
   confirmed?: boolean;

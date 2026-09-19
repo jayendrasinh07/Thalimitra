@@ -201,49 +201,79 @@ export type Database = {
       }
       delivery_zones: {
         Row: {
+          boundary: Json | null
+          breakfast_enabled: boolean
           created_at: string
           delivery_fee: number
           description: string | null
+          dinner_enabled: boolean
           estimated_duration_minutes: number
           id: string
           is_active: boolean
           is_free_delivery: boolean
+          lunch_enabled: boolean
           min_order_amount: number
           name: string
           pincodes: string[]
+          priority: number
+          published_at: string | null
+          published_by: string | null
           sectors: string[]
+          status: string
           tagline: string | null
           updated_at: string
+          version: number
+          waitlist_enabled: boolean
         }
         Insert: {
+          boundary?: Json | null
+          breakfast_enabled?: boolean
           created_at?: string
           delivery_fee?: number
           description?: string | null
+          dinner_enabled?: boolean
           estimated_duration_minutes?: number
           id: string
           is_active?: boolean
           is_free_delivery?: boolean
+          lunch_enabled?: boolean
           min_order_amount?: number
           name: string
           pincodes?: string[]
+          priority?: number
+          published_at?: string | null
+          published_by?: string | null
           sectors?: string[]
+          status?: string
           tagline?: string | null
           updated_at?: string
+          version?: number
+          waitlist_enabled?: boolean
         }
         Update: {
+          boundary?: Json | null
+          breakfast_enabled?: boolean
           created_at?: string
           delivery_fee?: number
           description?: string | null
+          dinner_enabled?: boolean
           estimated_duration_minutes?: number
           id?: string
           is_active?: boolean
           is_free_delivery?: boolean
+          lunch_enabled?: boolean
           min_order_amount?: number
           name?: string
           pincodes?: string[]
+          priority?: number
+          published_at?: string | null
+          published_by?: string | null
           sectors?: string[]
+          status?: string
           tagline?: string | null
           updated_at?: string
+          version?: number
+          waitlist_enabled?: boolean
         }
         Relationships: []
       }
@@ -722,6 +752,18 @@ export type Database = {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
       }
+      check_delivery_serviceability: {
+        Args: {
+          p_latitude: number
+          p_longitude: number
+          p_pincode?: string | null
+          p_area?: string | null
+          p_sector?: string | null
+          p_meal_type?: string | null
+        }
+        Returns: Json
+      }
+      get_delivery_areas: { Args: never; Returns: Json }
       get_client_error_summary: { Args: never; Returns: Json }
       get_kitchen_management: { Args: never; Returns: Json }
       get_kitchen_menu: { Args: { p_menu_date: string }; Returns: Json }
@@ -760,6 +802,23 @@ export type Database = {
       revoke_kitchen_access: { Args: { p_user_id: string }; Returns: Json }
       save_kitchen_delivery_slot: {
         Args: { p_is_active: boolean; p_max_portions: number; p_slot_id: string }
+        Returns: Json
+      }
+      save_delivery_area: {
+        Args: {
+          p_area_id: string | null
+          p_name: string
+          p_status: string
+          p_boundary: Json | null
+          p_breakfast_enabled: boolean
+          p_lunch_enabled: boolean
+          p_dinner_enabled: boolean
+          p_delivery_fee: number
+          p_min_order_amount: number
+          p_estimated_duration_minutes: number
+          p_waitlist_enabled: boolean
+          p_priority: number
+        }
         Returns: Json
       }
       save_kitchen_meal: {

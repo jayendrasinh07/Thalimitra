@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { GANDHINAGAR_AREAS } from '../data/config';
 import { reverseGeocodeGoogle } from './googleMapsLoader';
+import { checkCoordinateServiceability } from './serviceabilityService';
 
 // Central Kitchen Hub: Sector 25 Central Steam Kitchen, Gandhinagar
 export const CENTRAL_KITCHEN_COORDS = {
@@ -264,8 +265,38 @@ export async function reverseGeocodeCoordinates(
     formattedAddress = displayName;
   }
 
-  // Calculate serviceability on actual real coordinates and real area
-  const serviceability = evaluateLocationServiceability(latitude, longitude, area, city, pincode);
+  // The database boundary is authoritative. The local result is retained only
+  // for the short deployment window before the new RPC reaches PostgREST.
+  let serviceability = evaluateLocationServiceability(latitude, longitude, area, city, pincode);
+  try {
+    const server = await checkCoordinateServiceability({ latitude, longitude, area, sector, pincode });
+    serviceability = {
+      ...serviceability,
+      isServiceable: server.isServiceable,
+      status: server.status,
+      zoneId: server.areaId || 'unserviceable',
+      areaName: server.areaName,
+      sectorOrZone: server.areaName,
+      clusterId: server.areaId || '',
+      clusterName: server.areaName,
+      deliveryFee: server.deliveryFee,
+      minOrderAmount: server.minOrderAmount,
+      estimatedDurationMinutes: server.estimatedDurationMinutes,
+      waitlistEnabled: server.waitlistEnabled,
+      services: server.services,
+      message: server.message,
+    };
+  } catch (cause) {
+    const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : '';
+    if (!['PGRST202', '42883'].includes(code)) {
+      serviceability = {
+        ...serviceability, isServiceable: false, status: 'unavailable',
+        zoneId: 'unserviceable', deliveryFee: 0,
+        message: 'Delivery availability could not be confirmed. Please try again.',
+      };
+    }
+    console.warn('[Thalimitra Maps] Database serviceability lookup failed:', cause);
+  }
 
   console.log('REVERSE GEOCODING RESULT:', { displayName, formattedAddress, area, sector, city, state, pincode, placeId });
   console.log('SERVICEABILITY RESULT:', serviceability);

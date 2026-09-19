@@ -1,5 +1,5 @@
 import { getSupabaseClient } from './supabaseClient';
-import { DeliveryAddress, DeliveryZone, AreaWaitlistEntry } from '../types';
+import { DeliveryAddress, AreaWaitlistEntry } from '../types';
 export const mapAddress = (r:any):DeliveryAddress => ({
  id:r.id,userId:r.user_id,label:r.label,customLabel:r.custom_label??undefined,name:r.recipient_name,fullName:r.recipient_name,phone:r.recipient_phone,
  houseNumber:r.house_flat_number??undefined,building:r.building_name??undefined,floor:r.floor??undefined,street:r.street??undefined,landmark:r.landmark??undefined,
@@ -21,6 +21,5 @@ export const addressService={
  async updateAddress(id:string,updates:Partial<DeliveryAddress>,userId?:string):Promise<boolean>{if(!userId)throw new Error('Please sign in.');const {data,error}=await getSupabaseClient().from('addresses').update(payloadFor(updates) as any).eq('id',id).eq('user_id',userId).select('id').single();if(error)throw error;return Boolean(data);},
  async deleteAddress(id:string,userId?:string):Promise<boolean>{if(!userId)throw new Error('Please sign in.');const {data,error}=await getSupabaseClient().from('addresses').delete().eq('id',id).eq('user_id',userId).select('id').single();if(error)throw error;return Boolean(data);},
  async quoteAddress(id:string):Promise<{zoneId:string;deliveryFee:number;minOrderAmount:number}>{const {data,error}=await getSupabaseClient().rpc('quote_delivery_address',{p_address_id:id});if(error)throw error;return data as any;},
- async getDeliveryZones():Promise<Record<string,DeliveryZone>>{const {data,error}=await getSupabaseClient().from('delivery_zones').select('*').eq('is_active',true);if(error)throw error;return Object.fromEntries((data??[]).map((r:any)=>[r.id,{id:r.id,name:r.name,tagline:r.tagline,description:r.description,deliveryFee:Number(r.delivery_fee),estimatedDurationMinutes:r.estimated_duration_minutes,minOrderAmount:Number(r.min_order_amount),isFreeDelivery:r.is_free_delivery,pincodes:r.pincodes,sectors:r.sectors}]));},
  async submitAreaWaitlist(entry:Omit<AreaWaitlistEntry,'id'|'createdAt'>):Promise<{success:boolean;error:Error|null}>{try{const {error}=await getSupabaseClient().from('area_waitlist').insert({name:entry.name,contact:entry.contact,area:entry.area,city:entry.city,pincode:entry.pincode,segment:entry.segment} as any);if(error)throw error;return{success:true,error:null};}catch(error){return{success:false,error:error as Error};}}
 };
