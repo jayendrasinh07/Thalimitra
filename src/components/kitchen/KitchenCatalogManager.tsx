@@ -20,11 +20,11 @@ import {
   type KitchenCatalogMealType,
 } from '../../services/kitchenCatalogService';
 
-const emptyMeal = (): KitchenCatalogMealInput => ({
+const emptyMeal = (mealType: KitchenCatalogMealType = 'lunch'): KitchenCatalogMealInput => ({
   name: '',
   description: '',
   imageUrl: '',
-  mealType: 'lunch',
+  mealType,
   dietType: 'standard_gujarati',
   basePrice: 89,
   isActive: true,
@@ -43,6 +43,17 @@ const toInput = (meal: KitchenCatalogMeal): KitchenCatalogMealInput => ({
 
 const mealTypeLabel = (value: KitchenCatalogMealType) =>
   value === 'both' ? 'Lunch & dinner' : value[0].toUpperCase() + value.slice(1);
+
+const catalogSections: Array<{
+  mealType: KitchenCatalogMealType;
+  title: string;
+  description: string;
+}> = [
+  { mealType: 'breakfast', title: 'Breakfast', description: 'Morning meals for the 7:30–9:00 AM delivery window.' },
+  { mealType: 'lunch', title: 'Lunch', description: 'Meals offered only during the lunch service.' },
+  { mealType: 'dinner', title: 'Dinner', description: 'Meals offered only during the dinner service.' },
+  { mealType: 'both', title: 'Lunch & dinner', description: 'Shared meals that can be selected for either service.' },
+];
 
 export const KitchenCatalogManager = () => {
   const [meals, setMeals] = useState<KitchenCatalogMeal[]>([]);
@@ -75,6 +86,11 @@ export const KitchenCatalogManager = () => {
       ? meals.filter(meal => `${meal.name} ${dietLabel(meal.dietType)} ${meal.mealType}`.toLocaleLowerCase('en-IN').includes(term))
       : meals;
   }, [meals, query]);
+
+  const sections = useMemo(() => catalogSections.map(section => ({
+    ...section,
+    meals: filtered.filter(meal => meal.mealType === section.mealType),
+  })), [filtered]);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -151,9 +167,28 @@ export const KitchenCatalogManager = () => {
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center text-sm text-stone-500">No meals match this search.</div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map(meal => (
-            <article key={meal.id} className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${meal.isActive ? 'border-stone-200' : 'border-stone-300 opacity-75'}`}>
+        <div className="space-y-6">
+          {sections.map(section => (
+            <section key={section.mealType} aria-labelledby={`catalog-${section.mealType}`} className="rounded-3xl border border-stone-200 bg-stone-50/70 p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 id={`catalog-${section.mealType}`} className="text-xl font-black text-stone-900">{section.title}</h3>
+                  <p className="mt-1 text-xs text-stone-500">{section.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-stone-600">{section.meals.length} meals</span>
+                  <button type="button" onClick={() => { setEditor(emptyMeal(section.mealType)); setNotice(''); }}
+                    className="min-h-10 rounded-xl border border-emerald-700 bg-white px-3 text-xs font-black text-emerald-800 hover:bg-emerald-50">
+                    Add {section.title}
+                  </button>
+                </div>
+              </div>
+              {section.meals.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-6 text-center text-sm text-stone-500">No {section.title.toLocaleLowerCase('en-IN')} meals in this section.</div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {section.meals.map(meal => (
+                    <article key={meal.id} className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${meal.isActive ? 'border-stone-200' : 'border-stone-300 opacity-75'}`}>
               {meal.imageUrl ? <img src={meal.imageUrl} alt="" className="h-36 w-full object-cover" /> : (
                 <div className="flex h-28 items-center justify-center bg-gradient-to-br from-emerald-50 to-amber-50 text-emerald-700"><ImageIcon size={30} /></div>
               )}
@@ -176,7 +211,11 @@ export const KitchenCatalogManager = () => {
                   </div>
                 </div>
               </div>
-            </article>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           ))}
         </div>
       )}
