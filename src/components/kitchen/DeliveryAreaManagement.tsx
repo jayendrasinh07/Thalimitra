@@ -124,7 +124,7 @@ export const DeliveryAreaManagement = () => {
           </div>
           <label className="flex min-h-11 items-center justify-between rounded-xl border border-stone-200 px-3 text-sm font-bold text-stone-700">Allow waitlist when unavailable<input type="checkbox" checked={draft.waitlistEnabled} onChange={event => setDraft(current => ({ ...current, waitlistEnabled: event.target.checked }))} className="h-5 w-5 accent-emerald-700" /></label>
 
-          <BoundaryEditor points={points} onChange={setPoints} />
+          <BoundaryEditor points={points} onChange={setPoints} focusKey={selectedId ?? 'new-area'} />
 
           {reviewingPublish && <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4"><div className="flex items-start gap-3"><AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-700" /><div><p className="font-black text-amber-950">Confirm public area</p><p className="mt-1 text-sm text-amber-900"><strong>{draft.name.trim()}</strong> will become {draft.status === 'available' ? 'orderable' : 'visible as coming soon'} for {[draft.breakfastEnabled && 'Breakfast', draft.lunchEnabled && 'Lunch', draft.dinnerEnabled && 'Dinner'].filter(Boolean).join(', ') || 'no meal service'}. Review the boundary, fee, minimum order and ETA first.</p></div></div><div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setReviewingPublish(false)} className="min-h-11 rounded-xl border border-amber-300 px-4 text-sm font-bold text-amber-950">Keep editing</button><button type="button" onClick={() => void save(true)} disabled={saving || (draft.status === 'available' && !draft.breakfastEnabled && !draft.lunchEnabled && !draft.dinnerEnabled)} className="min-h-11 rounded-xl bg-amber-900 px-4 text-sm font-bold text-white disabled:opacity-40">Confirm & publish</button></div></div>}
 
@@ -139,7 +139,7 @@ const StatusBadge = ({ status }: { status: ManagedDeliveryArea['status'] }) => <
 
 const NumberField = ({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) => <label className="text-xs font-bold text-stone-600">{label}<input type="number" min={min} max={max} step={1} value={value} onChange={event => onChange(Number(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 px-3 text-sm text-stone-900" /></label>;
 
-const BoundaryEditor = ({ points, onChange }: { points: Point[]; onChange: (points: Point[]) => void }) => {
+const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onChange: (points: Point[]) => void; focusKey: string }) => {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const callback = useRef(onChange);
@@ -152,23 +152,37 @@ const BoundaryEditor = ({ points, onChange }: { points: Point[]; onChange: (poin
   pointsRef.current = points;
   const geojson = useMemo(() => ({ type: 'FeatureCollection' as const, features: points.length ? [
     { type: 'Feature' as const, properties: { kind: 'shape' }, geometry: points.length >= 3 ? boundaryFromPoints(points)! : { type: 'LineString' as const, coordinates: points } },
-    ...points.map(point => ({ type: 'Feature' as const, properties: { kind: 'point' }, geometry: { type: 'Point' as const, coordinates: point } })),
+    ...points.map((point, index) => ({ type: 'Feature' as const, properties: { kind: 'point', index: index + 1 }, geometry: { type: 'Point' as const, coordinates: point } })),
   ] : [] }), [points]);
+  const geojsonRef = useRef(geojson);
+  geojsonRef.current = geojson;
+
+  const focusBoundary = (map: MapLibreMap, boundaryPoints: Point[]) => {
+    if (!boundaryPoints.length) return;
+    const lngs = boundaryPoints.map(point => point[0]);
+    const lats = boundaryPoints.map(point => point[1]);
+    map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], {
+      padding: 56, maxZoom: 16, duration: 0,
+    });
+  };
 
   useEffect(() => {
     if (!container.current) return;
     const map = new MapLibreMap({ container: container.current, style: MAP_STYLE, center: [72.6369, 23.2156], zoom: 11.5, minZoom: 9, maxZoom: 19, attributionControl: { compact: true }, dragRotate: false, touchPitch: false });
     mapRef.current = map; map.touchZoomRotate.disableRotation(); map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
     map.on('load', () => {
-      map.addSource('boundary', { type: 'geojson', data: geojson as never });
+      map.addSource('boundary', { type: 'geojson', data: geojsonRef.current as never });
       map.addLayer({ id: 'boundary-fill', type: 'fill', source: 'boundary', filter: ['==', ['get', 'kind'], 'shape'], paint: { 'fill-color': '#0D6E44', 'fill-opacity': 0.2 } });
       map.addLayer({ id: 'boundary-line', type: 'line', source: 'boundary', filter: ['==', ['get', 'kind'], 'shape'], paint: { 'line-color': '#0D6E44', 'line-width': 3 } });
-      map.addLayer({ id: 'boundary-points', type: 'circle', source: 'boundary', filter: ['==', ['get', 'kind'], 'point'], paint: { 'circle-radius': 5, 'circle-color': '#F59E0B', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
+      map.addLayer({ id: 'boundary-points', type: 'circle', source: 'boundary', filter: ['==', ['get', 'kind'], 'point'], paint: { 'circle-radius': 10, 'circle-color': '#D97706', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 } });
+      map.addLayer({ id: 'boundary-point-labels', type: 'symbol', source: 'boundary', filter: ['==', ['get', 'kind'], 'point'], layout: { 'text-field': ['to-string', ['get', 'index']], 'text-size': 11, 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#ffffff' } });
+      focusBoundary(map, pointsRef.current);
     });
     map.on('click', event => callback.current([...pointsRef.current, [Number(event.lngLat.lng.toFixed(6)), Number(event.lngLat.lat.toFixed(6))]]));
     return () => { mapRef.current = null; map.remove(); };
   }, []);
   useEffect(() => { const source = mapRef.current?.getSource('boundary') as unknown as { setData: (data: unknown) => void } | undefined; source?.setData(geojson); }, [geojson]);
+  useEffect(() => { const map = mapRef.current; if (map?.loaded()) focusBoundary(map, pointsRef.current); }, [focusKey]);
 
   const search = async () => {
     if (searchQuery.trim().length < 3) return;
