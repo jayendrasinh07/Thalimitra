@@ -4,6 +4,7 @@ export interface PublicDeliveryArea {
   id: string;
   name: string;
   tagline: string | null;
+  status: 'available' | 'coming_soon';
   deliveryFee: number;
   minOrderAmount: number;
   estimatedDurationMinutes: number;
@@ -31,6 +32,7 @@ const parsePublicArea = (value: unknown): PublicDeliveryArea | null => {
   const latitude = Number(area.latitude);
   const longitude = Number(area.longitude);
   if (typeof area.id !== 'string' || typeof area.name !== 'string'
+    || (area.status !== 'available' && area.status !== 'coming_soon')
     || !services || typeof services.breakfast !== 'boolean'
     || typeof services.lunch !== 'boolean' || typeof services.dinner !== 'boolean'
     || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
@@ -38,6 +40,7 @@ const parsePublicArea = (value: unknown): PublicDeliveryArea | null => {
     id: area.id,
     name: area.name,
     tagline: typeof area.tagline === 'string' ? area.tagline : null,
+    status: area.status,
     deliveryFee: Number(area.deliveryFee || 0),
     minOrderAmount: Number(area.minOrderAmount || 0),
     estimatedDurationMinutes: Number(area.estimatedDurationMinutes || 0),

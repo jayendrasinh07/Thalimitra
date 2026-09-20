@@ -117,6 +117,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM jsonb_array_elements(v_public) entry
     WHERE entry->>'name' = 'Sector 21 pilot'
+      AND entry->>'status' = 'available'
       AND (entry#>>'{services,lunch}')::boolean
       AND NOT (entry ? 'boundary')
   ) THEN
@@ -205,11 +206,47 @@ DECLARE
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', v_f->>'admin', true);
   PERFORM public.save_delivery_area(
+    v_area_id, 'Sector 21 pilot', 'coming_soon', NULL,
+    false, true, false, 12, 99, 30, true, 500
+  );
+END $$;
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+DO $$
+DECLARE
+  v_public JSONB := public.list_public_delivery_areas();
+  v_result JSONB := public.check_delivery_serviceability(23.215,72.635,'382021','Sector 21','Sector 21','lunch');
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(v_public) entry
+    WHERE entry->>'name' = 'Sector 21 pilot' AND entry->>'status' = 'coming_soon'
+  ) OR v_result->>'status' <> 'coming_soon'
+       OR (v_result->>'isServiceable')::boolean IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'Coming-soon area is not publicly visible and safely blocked: public=%, result=%', v_public, v_result;
+  END IF;
+END $$;
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  v_f JSONB := current_setting('test.delivery_areas')::jsonb;
+  v_area_id TEXT := current_setting('test.delivery_area_id');
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', v_f->>'admin', true);
+  PERFORM public.save_delivery_area(
     v_area_id, 'Sector 21 pilot', 'paused', NULL,
     false, true, false, 12, 99, 30, true, 500
   );
   IF (public.check_delivery_serviceability(23.215,72.635,'382021','Sector 21','Sector 21','lunch')->>'status') <> 'unavailable' THEN
     RAISE EXCEPTION 'Paused area still accepts serviceability checks';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM jsonb_array_elements(public.list_public_delivery_areas()) entry
+    WHERE entry->>'name' = 'Sector 21 pilot'
+  ) THEN
+    RAISE EXCEPTION 'Paused area is still exposed in the public list';
   END IF;
 END $$;
 RESET ROLE;
@@ -217,10 +254,10 @@ RESET ROLE;
 DO $$
 BEGIN
   IF (SELECT count(*) FROM private.delivery_area_events
-      WHERE zone_id = current_setting('test.delivery_area_id')) <> 2 THEN
+      WHERE zone_id = current_setting('test.delivery_area_id')) <> 3 THEN
     RAISE EXCEPTION 'Delivery area audit history is incomplete';
   END IF;
 END $$;
 
 ROLLBACK;
-SELECT 'PASS: admin-only polygon areas, public area discovery, cloud waitlist, address quote, pause and audit' AS result;
+SELECT 'PASS: admin-only polygon areas, available/coming-soon/paused lifecycle, cloud waitlist, address quote and audit' AS result;

@@ -21,6 +21,10 @@ assert.match(managementSource, /Remove point/);
 assert.doesNotMatch(managementSource, /MapLibreMap/);
 assert.match(managementSource, /Use as editable draft/);
 assert.match(managementSource, /searchDeliveryAreaBoundaries/);
+assert.match(managementSource, /referenceLayerRef/);
+assert.match(managementSource, /Click any saved boundary to edit it/);
+assert.match(managementSource, /Coming soon/);
+assert.match(managementSource, /Paused/);
 
 const source = readFileSync('src/services/deliveryAreaService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')

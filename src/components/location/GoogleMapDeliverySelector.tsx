@@ -137,7 +137,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   const [waitlistSubmitted, setWaitlistSubmitted] = useState<boolean>(false);
   const [waitlistSubmitting, setWaitlistSubmitting] = useState<boolean>(false);
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
-  const [availableAreas, setAvailableAreas] = useState<PublicDeliveryArea[]>([]);
+  const [publicAreas, setPublicAreas] = useState<PublicDeliveryArea[]>([]);
 
   // Saved address conflict state
   const [conflictingSavedAddress, setConflictingSavedAddress] = useState<DeliveryAddress | null>(null);
@@ -147,7 +147,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
 
   useEffect(() => {
     let active = true;
-    void listPublicDeliveryAreas().then(areas => { if (active) setAvailableAreas(areas); }).catch(() => { if (active) setAvailableAreas([]); });
+    void listPublicDeliveryAreas().then(areas => { if (active) setPublicAreas(areas); }).catch(() => { if (active) setPublicAreas([]); });
     return () => { active = false; };
   }, []);
 
@@ -694,6 +694,9 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
     googleMapInstanceRef.current?.panTo({ lat: area.latitude, lng: area.longitude });
     googleMapInstanceRef.current?.setZoom(15);
   };
+
+  const availableAreas = publicAreas.filter(area => area.status === 'available');
+  const comingSoonAreas = publicAreas.filter(area => area.status === 'coming_soon');
 
   return (
     <div className="flex flex-col h-full bg-[#FAF8F5] text-stone-900 rounded-none sm:rounded-3xl overflow-hidden shadow-2xl relative select-none">
@@ -1299,6 +1302,11 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                 {availableAreas.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{availableAreas.map(area => <button key={area.id} type="button" onClick={() => showAvailableArea(area)} className="flex min-h-10 items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 text-xs font-black text-emerald-900 shadow-sm transition hover:border-emerald-500"><MapPin className="h-3.5 w-3.5" />{area.name}<ChevronRight className="h-3.5 w-3.5" /></button>)}</div>
                   : <p className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs font-semibold text-emerald-900">Verified areas will appear here as soon as Operations publishes them.</p>}
               </div>
+
+              {comingSoonAreas.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-black text-amber-950">Coming soon</p><p className="mt-0.5 text-xs text-amber-800">These routes are published for expansion, but ordering is not open yet.</p></div><Bell className="h-5 w-5 text-amber-700" /></div>
+                <div className="mt-3 flex flex-wrap gap-2">{comingSoonAreas.map(area => <button key={area.id} type="button" onClick={() => showAvailableArea(area)} className="flex min-h-10 items-center gap-2 rounded-full border border-amber-200 bg-white px-3 text-xs font-black text-amber-950 shadow-sm transition hover:border-amber-500"><MapPin className="h-3.5 w-3.5" />{area.name}<ChevronRight className="h-3.5 w-3.5" /></button>)}</div>
+              </div>}
 
               {/* Waitlist Form */}
               {!waitlistRegistrationEnabled ? (

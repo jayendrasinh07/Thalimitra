@@ -63,6 +63,13 @@ const draftFromArea = (area: ManagedDeliveryArea): DeliveryAreaDraft => ({
   estimatedDurationMinutes: area.estimated_duration_minutes, priority: area.priority,
 });
 
+const AREA_STATUS_STYLE: Record<ManagedDeliveryArea['status'], { color: string; fill: string; dash?: string }> = {
+  available: { color: '#047857', fill: '#10B981' },
+  coming_soon: { color: '#B45309', fill: '#F59E0B', dash: '8 6' },
+  paused: { color: '#B91C1C', fill: '#EF4444', dash: '4 6' },
+  draft: { color: '#64748B', fill: '#94A3B8', dash: '4 6' },
+};
+
 export const DeliveryAreaManagement = () => {
   const [document, setDocument] = useState<DeliveryAreaDocument | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -89,6 +96,7 @@ export const DeliveryAreaManagement = () => {
   const createNew = () => {
     setSelectedId(null); setDraft(EMPTY_DRAFT); setPoints([]); setNotice(null); setError(null); setReviewingPublish(false);
   };
+  const statusCounts = document?.areas.reduce((counts, area) => ({ ...counts, [area.status]: counts[area.status] + 1 }), { available: 0, coming_soon: 0, paused: 0, draft: 0 }) ?? { available: 0, coming_soon: 0, paused: 0, draft: 0 };
   const save = async (publishConfirmed = false) => {
     const isPublicStatus = draft.status === 'available' || draft.status === 'coming_soon';
     if (isPublicStatus && !publishConfirmed) {
@@ -122,6 +130,12 @@ export const DeliveryAreaManagement = () => {
       <div className="mt-5 grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
         <div className="overflow-hidden rounded-2xl border border-stone-200">
           <div className="flex items-center justify-between bg-stone-50 px-4 py-3"><p className="text-xs font-black uppercase tracking-wider text-stone-500">Saved areas</p><button type="button" onClick={() => void load()} disabled={loading} aria-label="Refresh areas" className="rounded-lg p-2 text-stone-600 hover:bg-white"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /></button></div>
+          <div className="grid grid-cols-2 gap-2 border-y border-stone-100 bg-white p-3">
+            <StatusCount label="Available" count={statusCounts.available} tone="emerald" />
+            <StatusCount label="Coming soon" count={statusCounts.coming_soon} tone="amber" />
+            <StatusCount label="Paused" count={statusCounts.paused} tone="red" />
+            <StatusCount label="Draft" count={statusCounts.draft} tone="stone" />
+          </div>
           <div className="max-h-[520px] divide-y divide-stone-100 overflow-y-auto">
             {!loading && document?.areas.length === 0 && <p className="p-4 text-sm text-stone-500">No delivery area yet.</p>}
             {document?.areas.map(area => <button key={area.id} type="button" onClick={() => choose(area)} className={`w-full p-4 text-left transition ${selectedId === area.id ? 'bg-emerald-50' : 'bg-white hover:bg-stone-50'}`}><div className="flex items-start justify-between gap-2"><p className="font-black text-stone-900">{area.name}</p><StatusBadge status={area.status} /></div><p className="mt-2 text-xs text-stone-500">{area.boundary ? 'Map boundary active' : 'Legacy sector/pincode rule'} · v{area.version}</p><p className="mt-1 text-xs font-bold text-stone-600">{[area.breakfast_enabled && 'Breakfast', area.lunch_enabled && 'Lunch', area.dinner_enabled && 'Dinner'].filter(Boolean).join(' · ') || 'No meal service'}</p></button>)}
@@ -144,27 +158,31 @@ export const DeliveryAreaManagement = () => {
           </div>
           <label className="flex min-h-11 items-center justify-between rounded-xl border border-stone-200 px-3 text-sm font-bold text-stone-700">Allow waitlist when unavailable<input type="checkbox" checked={draft.waitlistEnabled} onChange={event => setDraft(current => ({ ...current, waitlistEnabled: event.target.checked }))} className="h-5 w-5 accent-emerald-700" /></label>
 
-          <BoundaryEditor points={points} onChange={setPoints} focusKey={selectedId ?? 'new-area'} />
+          <BoundaryEditor points={points} onChange={setPoints} focusKey={selectedId ?? 'new-area'} areas={document?.areas ?? []} selectedId={selectedId} onSelectArea={choose} />
 
-          {reviewingPublish && <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4"><div className="flex items-start gap-3"><AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-700" /><div><p className="font-black text-amber-950">Confirm public area</p><p className="mt-1 text-sm text-amber-900"><strong>{draft.name.trim()}</strong> will become {draft.status === 'available' ? 'orderable' : 'visible as coming soon'} for {[draft.breakfastEnabled && 'Breakfast', draft.lunchEnabled && 'Lunch', draft.dinnerEnabled && 'Dinner'].filter(Boolean).join(', ') || 'no meal service'}. Review the boundary, fee, minimum order and ETA first.</p></div></div><div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setReviewingPublish(false)} className="min-h-11 rounded-xl border border-amber-300 px-4 text-sm font-bold text-amber-950">Keep editing</button><button type="button" onClick={() => void save(true)} disabled={saving || (draft.status === 'available' && !draft.breakfastEnabled && !draft.lunchEnabled && !draft.dinnerEnabled)} className="min-h-11 rounded-xl bg-amber-900 px-4 text-sm font-bold text-white disabled:opacity-40">Confirm & publish</button></div></div>}
+          {reviewingPublish && <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4"><div className="flex items-start gap-3"><AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-700" /><div><p className="font-black text-amber-950">Confirm public area</p><p className="mt-1 text-sm text-amber-900"><strong>{draft.name.trim()}</strong> will become {draft.status === 'available' ? 'orderable' : 'visible as coming soon'} for {[draft.breakfastEnabled && 'Breakfast', draft.lunchEnabled && 'Lunch', draft.dinnerEnabled && 'Dinner'].filter(Boolean).join(', ') || 'no meal service'}. Review the boundary, fee, minimum order and ETA first.</p></div></div><div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setReviewingPublish(false)} className="min-h-11 rounded-xl border border-amber-300 px-4 text-sm font-bold text-amber-950">Keep editing</button><button type="button" onClick={() => void save(true)} disabled={saving || !draft.breakfastEnabled && !draft.lunchEnabled && !draft.dinnerEnabled} className="min-h-11 rounded-xl bg-amber-900 px-4 text-sm font-bold text-white disabled:opacity-40">Confirm & publish</button></div></div>}
 
-          <div className="flex flex-col gap-3 rounded-2xl bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-stone-600">{points.length >= 3 ? `${points.length} boundary points ready.` : draft.id && !draft.boundary ? 'This legacy zone stays compatible until you draw and save a boundary.' : 'Add at least three points before creating a new area.'}</p><button type="button" onClick={() => void save()} disabled={saving || !draft.name.trim() || (!draft.id && points.length < 3) || (draft.status === 'available' && !draft.breakfastEnabled && !draft.lunchEnabled && !draft.dinnerEnabled)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white disabled:opacity-40">{saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}{saving ? 'Saving…' : draft.status === 'available' || draft.status === 'coming_soon' ? 'Review public change' : 'Save area'}</button></div>
+          <div className="flex flex-col gap-3 rounded-2xl bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-stone-600">{points.length >= 3 ? `${points.length} boundary points ready.` : draft.id && !draft.boundary ? 'This legacy zone stays compatible until you draw and save a boundary.' : 'Add at least three points before creating a new area.'}</p><button type="button" onClick={() => void save()} disabled={saving || !draft.name.trim() || (!draft.id && points.length < 3) || ((draft.status === 'available' || draft.status === 'coming_soon') && !draft.breakfastEnabled && !draft.lunchEnabled && !draft.dinnerEnabled)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white disabled:opacity-40">{saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}{saving ? 'Saving…' : draft.status === 'available' || draft.status === 'coming_soon' ? 'Review public change' : 'Save area'}</button></div>
         </div>
       </div>
     </section>
   );
 };
 
-const StatusBadge = ({ status }: { status: ManagedDeliveryArea['status'] }) => <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase ${status === 'available' ? 'bg-emerald-100 text-emerald-800' : status === 'coming_soon' ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-700'}`}>{status.replace('_', ' ')}</span>;
+const StatusBadge = ({ status }: { status: ManagedDeliveryArea['status'] }) => <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase ${status === 'available' ? 'bg-emerald-100 text-emerald-800' : status === 'coming_soon' ? 'bg-amber-100 text-amber-800' : status === 'paused' ? 'bg-red-100 text-red-800' : 'bg-stone-200 text-stone-700'}`}>{status.replace('_', ' ')}</span>;
+
+const StatusCount = ({ label, count, tone }: { label: string; count: number; tone: 'emerald' | 'amber' | 'red' | 'stone' }) => <div className={`rounded-xl px-3 py-2 ${tone === 'emerald' ? 'bg-emerald-50 text-emerald-900' : tone === 'amber' ? 'bg-amber-50 text-amber-900' : tone === 'red' ? 'bg-red-50 text-red-900' : 'bg-stone-100 text-stone-700'}`}><p className="text-lg font-black">{count}</p><p className="text-[10px] font-black uppercase tracking-wide">{label}</p></div>;
 
 const NumberField = ({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) => <label className="text-xs font-bold text-stone-600">{label}<input type="number" min={min} max={max} step={1} value={value} onChange={event => onChange(Number(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 px-3 text-sm text-stone-900" /></label>;
 
-const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onChange: (points: Point[]) => void; focusKey: string }) => {
+const BoundaryEditor = ({ points, onChange, focusKey, areas, selectedId, onSelectArea }: { points: Point[]; onChange: (points: Point[]) => void; focusKey: string; areas: ManagedDeliveryArea[]; selectedId: string | null; onSelectArea: (area: ManagedDeliveryArea) => void }) => {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
+  const referenceLayerRef = useRef<LayerGroup | null>(null);
   const boundaryLayerRef = useRef<LayerGroup | null>(null);
   const previewLayerRef = useRef<LayerGroup | null>(null);
   const callback = useRef(onChange);
+  const selectAreaCallback = useRef(onSelectArea);
   const pointsRef = useRef(points);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
@@ -173,6 +191,7 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   callback.current = onChange;
+  selectAreaCallback.current = onSelectArea;
   pointsRef.current = points;
 
   const focusBoundary = (map: LeafletMap, boundaryPoints: Point[]) => {
@@ -185,9 +204,11 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
     if (!container.current) return;
     const map = createLeafletMap(container.current, { center: [23.2156, 72.6369], zoom: 12, minZoom: 9, maxZoom: 19, zoomControl: true, attributionControl: true });
     tileLayer(MAP_TILES, { maxZoom: 20, attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }).addTo(map);
+    const referenceLayer = layerGroup().addTo(map);
     const boundaryLayer = layerGroup().addTo(map);
     const previewLayer = layerGroup().addTo(map);
     mapRef.current = map;
+    referenceLayerRef.current = referenceLayer;
     boundaryLayerRef.current = boundaryLayer;
     previewLayerRef.current = previewLayer;
     map.on('click', event => {
@@ -196,8 +217,23 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
       setSelectedPoint(null);
     });
     map.whenReady(() => { map.invalidateSize(); focusBoundary(map, pointsRef.current); });
-    return () => { previewLayerRef.current = null; boundaryLayerRef.current = null; mapRef.current = null; map.remove(); };
+    return () => { previewLayerRef.current = null; boundaryLayerRef.current = null; referenceLayerRef.current = null; mapRef.current = null; map.remove(); };
   }, []);
+  useEffect(() => {
+    const layer = referenceLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    areas.filter(area => area.id !== selectedId && area.boundary).forEach(area => {
+      const areaPoints = pointsFromBoundary(area.boundary);
+      if (areaPoints.length < 3) return;
+      const style = AREA_STATUS_STYLE[area.status];
+      const polygon = leafletPolygon(areaPoints.map(([lng, lat]) => [lat, lng] as [number, number]), {
+        color: style.color, weight: 2, dashArray: style.dash, fillColor: style.fill, fillOpacity: 0.1, bubblingMouseEvents: false,
+      }).addTo(layer);
+      polygon.bindTooltip(`${area.name} · ${area.status.replace('_', ' ')}`, { sticky: true });
+      polygon.on('click', () => selectAreaCallback.current(area));
+    });
+  }, [areas, selectedId]);
   useEffect(() => {
     const layer = boundaryLayerRef.current;
     if (!layer) return;
@@ -237,7 +273,13 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
       color: '#D97706', weight: 3, dashArray: '8 7', fillColor: '#F59E0B', fillOpacity: 0.14,
     }).addTo(layer);
   }, [preview]);
-  useEffect(() => { setSelectedPoint(null); const map = mapRef.current; if (map) focusBoundary(map, pointsRef.current); }, [focusKey]);
+  useEffect(() => {
+    setSelectedPoint(null);
+    const map = mapRef.current;
+    if (!map) return;
+    if (pointsRef.current.length) focusBoundary(map, pointsRef.current);
+    else focusBoundary(map, areas.flatMap(area => pointsFromBoundary(area.boundary)));
+  }, [focusKey, areas]);
   useEffect(() => { if (selectedPoint !== null && selectedPoint >= points.length) setSelectedPoint(null); }, [points.length, selectedPoint]);
 
   const search = async () => {
@@ -274,6 +316,7 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
       {searchError && <p role="alert" className="mt-2 text-xs font-bold text-amber-800">{searchError}</p>}
     </form>
     <div className="relative mt-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"><div ref={container} aria-label="Delivery boundary map" className="absolute inset-0 z-0" /><div className="pointer-events-none absolute bottom-3 left-3 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-stone-700 shadow"><MapPin size={14} className="mr-1 inline text-emerald-700" />{points.length} points</div></div>
+    <div className="mt-2 flex flex-wrap gap-3 text-[11px] font-bold text-stone-600"><span className="text-emerald-700">● Available</span><span className="text-amber-700">● Coming soon</span><span className="text-red-700">● Paused</span><span className="text-slate-600">● Draft</span><span>Click any saved boundary to edit it.</span></div>
     {selectedPoint !== null && <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3"><p className="text-xs font-bold text-emerald-950">Point {selectedPoint + 1} selected. Drag it on the map to resize the area.</p><button type="button" onClick={() => { if (points.length > 3) onChange(points.filter((_, index) => index !== selectedPoint)); setSelectedPoint(null); }} disabled={points.length <= 3} className="flex min-h-10 shrink-0 items-center gap-1 rounded-xl border border-red-200 bg-white px-3 text-xs font-bold text-red-700 disabled:opacity-40"><Trash2 size={14} />Remove point</button></div>}
     {preview && <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-amber-950">Search preview: {preview.mainText}</p><p className="mt-1 text-xs text-amber-900">{preview.outlineKind === 'mapped' ? 'Orange outline comes from OpenStreetMap. Review the roads before using it.' : 'Only an approximate search box is available. Use it as a starting point, then adjust every corner before saving.'}</p></div><div className="flex shrink-0 gap-2"><button type="button" onClick={() => setPreview(null)} className="min-h-10 rounded-xl border border-amber-300 px-3 text-xs font-bold text-amber-950">Dismiss</button><button type="button" onClick={() => { onChange(preview.outline); setPreview(null); setSelectedPoint(null); }} className="min-h-10 rounded-xl bg-amber-800 px-4 text-xs font-bold text-white">Use as editable draft</button></div></div>}
   </div>;
