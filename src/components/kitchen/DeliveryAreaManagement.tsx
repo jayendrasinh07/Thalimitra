@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, MapPin, Plus, RefreshCw, RotateCcw, Save, Undo2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, MapPin, Plus, RefreshCw, RotateCcw, Save, Search, Undo2, X } from 'lucide-react';
 import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
@@ -9,6 +9,7 @@ import {
   type DeliveryAreaDraft,
   type ManagedDeliveryArea,
 } from '../../services/deliveryAreaService';
+import { getGooglePlaceDetails, searchGooglePlaces, type UnifiedPrediction } from '../../services/googleMapsLoader';
 
 type Point = [number, number];
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
@@ -51,6 +52,7 @@ export const DeliveryAreaManagement = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [reviewingPublish, setReviewingPublish] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -62,12 +64,18 @@ export const DeliveryAreaManagement = () => {
 
   const choose = (area: ManagedDeliveryArea) => {
     setSelectedId(area.id); setDraft(draftFromArea(area)); setPoints(pointsFromBoundary(area.boundary));
-    setNotice(null); setError(null);
+    setNotice(null); setError(null); setReviewingPublish(false);
   };
   const createNew = () => {
-    setSelectedId(null); setDraft(EMPTY_DRAFT); setPoints([]); setNotice(null); setError(null);
+    setSelectedId(null); setDraft(EMPTY_DRAFT); setPoints([]); setNotice(null); setError(null); setReviewingPublish(false);
   };
-  const save = async () => {
+  const save = async (publishConfirmed = false) => {
+    const isPublicStatus = draft.status === 'available' || draft.status === 'coming_soon';
+    if (isPublicStatus && !publishConfirmed) {
+      setReviewingPublish(true);
+      setNotice(null);
+      return;
+    }
     setSaving(true); setError(null); setNotice(null);
     try {
       const boundary = boundaryFromPoints(points);
@@ -76,7 +84,8 @@ export const DeliveryAreaManagement = () => {
       const matched = saved.areas.find(area => area.id === draft.id)
         || saved.areas.find(area => area.name === draft.name.trim());
       if (matched) choose(matched);
-      setNotice(draft.status === 'available' ? 'Delivery area published.' : 'Delivery area saved.');
+      setReviewingPublish(false);
+      setNotice(draft.status === 'available' ? 'Delivery area published.' : draft.status === 'coming_soon' ? 'Coming-soon area published.' : 'Delivery area saved.');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Delivery area could not be saved.'); }
     finally { setSaving(false); }
   };
@@ -102,7 +111,7 @@ export const DeliveryAreaManagement = () => {
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs font-bold text-stone-600 sm:col-span-2">Area name<input value={draft.name} maxLength={120} onChange={event => setDraft(current => ({ ...current, name: event.target.value }))} placeholder="e.g. Sector 21 pilot" className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 px-3 text-sm text-stone-900" /></label>
-            <label className="text-xs font-bold text-stone-600">Status<select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as DeliveryAreaDraft['status'] }))} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900"><option value="draft">Draft</option><option value="available">Available</option><option value="coming_soon">Coming soon</option><option value="paused">Paused / unavailable</option></select></label>
+            <label className="text-xs font-bold text-stone-600">Status<select value={draft.status} onChange={event => { setDraft(current => ({ ...current, status: event.target.value as DeliveryAreaDraft['status'] })); setReviewingPublish(false); }} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900"><option value="draft">Draft</option><option value="available">Available — public</option><option value="coming_soon">Coming soon — public</option><option value="paused">Paused / unavailable</option></select></label>
             <label className="text-xs font-bold text-stone-600">Priority<input type="number" min={0} max={10000} value={draft.priority} onChange={event => setDraft(current => ({ ...current, priority: Number(event.target.value) }))} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 px-3 text-sm text-stone-900" /></label>
           </div>
 
@@ -117,7 +126,9 @@ export const DeliveryAreaManagement = () => {
 
           <BoundaryEditor points={points} onChange={setPoints} />
 
-          <div className="flex flex-col gap-3 rounded-2xl bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-stone-600">{points.length >= 3 ? `${points.length} boundary points ready.` : draft.id && !draft.boundary ? 'This legacy zone stays compatible until you draw and save a boundary.' : 'Add at least three points before creating a new area.'}</p><button type="button" onClick={() => void save()} disabled={saving || !draft.name.trim() || (!draft.id && points.length < 3)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white disabled:opacity-40">{saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}{saving ? 'Saving…' : draft.status === 'available' ? 'Save & publish' : 'Save area'}</button></div>
+          {reviewingPublish && <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4"><div className="flex items-start gap-3"><AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-700" /><div><p className="font-black text-amber-950">Confirm public area</p><p className="mt-1 text-sm text-amber-900"><strong>{draft.name.trim()}</strong> will become {draft.status === 'available' ? 'orderable' : 'visible as coming soon'} for {[draft.breakfastEnabled && 'Breakfast', draft.lunchEnabled && 'Lunch', draft.dinnerEnabled && 'Dinner'].filter(Boolean).join(', ') || 'no meal service'}. Review the boundary, fee, minimum order and ETA first.</p></div></div><div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setReviewingPublish(false)} className="min-h-11 rounded-xl border border-amber-300 px-4 text-sm font-bold text-amber-950">Keep editing</button><button type="button" onClick={() => void save(true)} disabled={saving || (draft.status === 'available' && !draft.breakfastEnabled && !draft.lunchEnabled && !draft.dinnerEnabled)} className="min-h-11 rounded-xl bg-amber-900 px-4 text-sm font-bold text-white disabled:opacity-40">Confirm & publish</button></div></div>}
+
+          <div className="flex flex-col gap-3 rounded-2xl bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-stone-600">{points.length >= 3 ? `${points.length} boundary points ready.` : draft.id && !draft.boundary ? 'This legacy zone stays compatible until you draw and save a boundary.' : 'Add at least three points before creating a new area.'}</p><button type="button" onClick={() => void save()} disabled={saving || !draft.name.trim() || (!draft.id && points.length < 3) || (draft.status === 'available' && !draft.breakfastEnabled && !draft.lunchEnabled && !draft.dinnerEnabled)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white disabled:opacity-40">{saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}{saving ? 'Saving…' : draft.status === 'available' || draft.status === 'coming_soon' ? 'Review public change' : 'Save area'}</button></div>
         </div>
       </div>
     </section>
@@ -133,6 +144,10 @@ const BoundaryEditor = ({ points, onChange }: { points: Point[]; onChange: (poin
   const mapRef = useRef<MapLibreMap | null>(null);
   const callback = useRef(onChange);
   const pointsRef = useRef(points);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [predictions, setPredictions] = useState<UnifiedPrediction[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
   callback.current = onChange;
   pointsRef.current = points;
   const geojson = useMemo(() => ({ type: 'FeatureCollection' as const, features: points.length ? [
@@ -155,5 +170,36 @@ const BoundaryEditor = ({ points, onChange }: { points: Point[]; onChange: (poin
   }, []);
   useEffect(() => { const source = mapRef.current?.getSource('boundary') as unknown as { setData: (data: unknown) => void } | undefined; source?.setData(geojson); }, [geojson]);
 
-  return <div><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-stone-500">Map boundary</p><p className="mt-1 text-xs text-stone-500">Click around the delivery area in order. The last point closes automatically.</p></div><div className="flex gap-2"><button type="button" onClick={() => onChange(points.slice(0, -1))} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><Undo2 size={14} />Undo</button><button type="button" onClick={() => onChange([])} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><RotateCcw size={14} />Clear</button></div></div><div className="relative mt-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"><div ref={container} className="absolute inset-0" /><div className="pointer-events-none absolute bottom-3 left-3 rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-stone-700 shadow"><MapPin size={14} className="mr-1 inline text-emerald-700" />{points.length} points</div></div></div>;
+  const search = async () => {
+    if (searchQuery.trim().length < 3) return;
+    setSearching(true); setSearchError(null);
+    try {
+      const results = await searchGooglePlaces(searchQuery, { lat: 23.2156, lng: 72.6369 });
+      setPredictions(results.slice(0, 5));
+      if (!results.length) setSearchError('No matching place found. Try a society, road, sector or landmark.');
+    } catch {
+      setPredictions([]); setSearchError('Map search is temporarily unavailable. You can still move the map manually.');
+    } finally { setSearching(false); }
+  };
+
+  const selectPrediction = async (prediction: UnifiedPrediction) => {
+    setSearching(true); setSearchError(null);
+    try {
+      const place = await getGooglePlaceDetails(prediction.placeId, prediction);
+      mapRef.current?.flyTo({ center: [place.longitude, place.latitude], zoom: 15, essential: true });
+      setSearchQuery(prediction.mainText || prediction.description);
+      setPredictions([]);
+    } catch { setSearchError('This place could not be positioned on the map.'); }
+    finally { setSearching(false); }
+  };
+
+  return <div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-stone-500">Map boundary</p><p className="mt-1 text-xs text-stone-500">Search the area, then click around the roads or societies you can actually deliver to.</p></div><div className="flex gap-2"><button type="button" onClick={() => onChange(points.slice(0, -1))} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><Undo2 size={14} />Undo</button><button type="button" onClick={() => onChange([])} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><RotateCcw size={14} />Clear</button></div></div>
+    <form onSubmit={event => { event.preventDefault(); void search(); }} className="relative mt-3">
+      <div className="flex gap-2"><label className="relative min-w-0 flex-1"><span className="sr-only">Search map area</span><Search size={16} className="pointer-events-none absolute left-3 top-3.5 text-stone-400" /><input value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setPredictions([]); setSearchError(null); }} placeholder="Search society, road, sector or landmark" className="min-h-11 w-full rounded-xl border border-stone-200 pl-10 pr-10 text-sm text-stone-900" />{searchQuery && <button type="button" onClick={() => { setSearchQuery(''); setPredictions([]); setSearchError(null); }} aria-label="Clear map search" className="absolute right-2 top-2 rounded-lg p-2 text-stone-400 hover:bg-stone-100"><X size={15} /></button>}</label><button type="submit" disabled={searching || searchQuery.trim().length < 3} className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-40">{searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}Find</button></div>
+      {predictions.length > 0 && <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl">{predictions.map(prediction => <button key={prediction.placeId} type="button" onClick={() => void selectPrediction(prediction)} className="block w-full border-b border-stone-100 px-4 py-3 text-left last:border-0 hover:bg-stone-50"><span className="block text-sm font-bold text-stone-900">{prediction.mainText}</span><span className="mt-0.5 block text-xs text-stone-500">{prediction.secondaryText || prediction.description}</span></button>)}</div>}
+      {searchError && <p role="alert" className="mt-2 text-xs font-bold text-amber-800">{searchError}</p>}
+    </form>
+    <div className="relative mt-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"><div ref={container} className="absolute inset-0" /><div className="pointer-events-none absolute bottom-3 left-3 rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-stone-700 shadow"><MapPin size={14} className="mr-1 inline text-emerald-700" />{points.length} points</div></div>
+  </div>;
 };

@@ -54,6 +54,23 @@ BEGIN
 END $$;
 RESET ROLE;
 
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE v_f JSONB := current_setting('test.delivery_areas')::jsonb;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', v_f->>'admin', true);
+  BEGIN
+    PERFORM public.save_delivery_area(
+      NULL, 'Ambiguous overlapping area', 'available',
+      '{"type":"Polygon","coordinates":[[[72.635,23.215],[72.645,23.215],[72.645,23.225],[72.635,23.225],[72.635,23.215]]]}'::jsonb,
+      false, true, false, 0, 0, 30, false, 500
+    );
+    RAISE EXCEPTION 'Same-priority overlap was accepted';
+  EXCEPTION WHEN exclusion_violation THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
 SET LOCAL ROLE anon;
 DO $$
 DECLARE

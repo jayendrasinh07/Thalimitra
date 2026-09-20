@@ -454,7 +454,7 @@ export function checkAreaServiceability(searchQuery: string): ServiceabilityResu
     clusterId: '',
     clusterName: '',
     deliveryFee: 0,
-    message: `We're not delivering to "${searchQuery}" yet. Thalimitra currently serves all Gandhinagar sectors (1–30), Infocity, Kudasan, and GIFT City.`,
+    message: `We couldn't confirm delivery for "${searchQuery}". Select the exact doorstep on the map for the current database-verified result.`,
     estimatedLunchSlot: 'N/A',
     estimatedDinnerSlot: 'N/A'
   };

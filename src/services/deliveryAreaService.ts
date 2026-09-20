@@ -46,6 +46,7 @@ export class DeliveryAreaError extends Error {
   constructor(code: string, message?: string) {
     super(message || (code === '42501' ? 'Admin access with security verification is required.'
       : code === '23514' ? 'Draw a boundary before publishing this area.'
+      : code === '23P01' ? 'This boundary overlaps another public area with the same priority. Change the boundary or priority.'
       : code === 'P0002' ? 'Delivery area was not found.'
       : code === '22023' ? 'Check the area details and boundary.'
       : 'Delivery Areas could not be updated. Try again.'));
