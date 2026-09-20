@@ -264,13 +264,25 @@ export async function reverseGeocodeCoordinates(
     formattedAddress = displayName;
   }
 
-  // The database boundary is authoritative. The local result is retained only
-  // for the short deployment window before the new RPC reaches PostgREST.
-  let serviceability = evaluateLocationServiceability(latitude, longitude, area, city, pincode);
+  // The database boundary is authoritative. Fail closed until it confirms the pin.
+  let serviceability: ServiceabilityResult = {
+    isServiceable: false,
+    status: 'unavailable',
+    services: { breakfast: false, lunch: false, dinner: false },
+    areaName: area || 'Selected location',
+    sectorOrZone: sector || area || 'Selected location',
+    city,
+    pincode,
+    clusterId: '',
+    clusterName: '',
+    deliveryFee: 0,
+    message: 'Delivery availability could not be confirmed. Please try again.',
+    estimatedLunchSlot: 'N/A',
+    estimatedDinnerSlot: 'N/A',
+  };
   try {
     const server = await checkCoordinateServiceability({ latitude, longitude, area, sector, pincode });
     serviceability = {
-      ...serviceability,
       isServiceable: server.isServiceable,
       status: server.status,
       zoneId: server.areaId || 'unserviceable',
@@ -284,16 +296,12 @@ export async function reverseGeocodeCoordinates(
       waitlistEnabled: server.waitlistEnabled,
       services: server.services,
       message: server.message,
+      city,
+      pincode,
+      estimatedLunchSlot: 'Confirmed during ordering',
+      estimatedDinnerSlot: 'Confirmed during ordering',
     };
   } catch (cause) {
-    const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : '';
-    if (!['PGRST202', '42883'].includes(code)) {
-      serviceability = {
-        ...serviceability, isServiceable: false, status: 'unavailable',
-        zoneId: 'unserviceable', deliveryFee: 0,
-        message: 'Delivery availability could not be confirmed. Please try again.',
-      };
-    }
     console.warn('[Thalimitra Maps] Database serviceability lookup failed:', cause);
   }
 

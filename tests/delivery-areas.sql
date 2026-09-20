@@ -109,20 +109,25 @@ BEGIN
 END $$;
 RESET ROLE;
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.delivery_zones
+    WHERE id IN ('zone_a_core', 'zone_b_extended', 'zone_c_periphery')
+      AND (status <> 'paused' OR is_active)
+  ) THEN
+    RAISE EXCEPTION 'Phase-1 broad delivery rules were not retired';
+  END IF;
+END $$;
+
 SET LOCAL ROLE anon;
 DO $$
-DECLARE v_public JSONB;
 BEGIN
-  v_public := public.list_public_delivery_areas();
-  IF NOT EXISTS (
-    SELECT 1 FROM jsonb_array_elements(v_public) entry
-    WHERE entry->>'name' = 'Sector 21 pilot'
-      AND entry->>'status' = 'available'
-      AND (entry#>>'{services,lunch}')::boolean
-      AND NOT (entry ? 'boundary')
-  ) THEN
-    RAISE EXCEPTION 'Public available-area list is incomplete or unsafe: %', v_public;
-  END IF;
+  BEGIN
+    PERFORM public.list_public_delivery_areas();
+    RAISE EXCEPTION 'Public master area discovery remained executable';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
 END $$;
 RESET ROLE;
 
@@ -215,15 +220,11 @@ RESET ROLE;
 SET LOCAL ROLE anon;
 DO $$
 DECLARE
-  v_public JSONB := public.list_public_delivery_areas();
   v_result JSONB := public.check_delivery_serviceability(23.215,72.635,'382021','Sector 21','Sector 21','lunch');
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM jsonb_array_elements(v_public) entry
-    WHERE entry->>'name' = 'Sector 21 pilot' AND entry->>'status' = 'coming_soon'
-  ) OR v_result->>'status' <> 'coming_soon'
+  IF v_result->>'status' <> 'coming_soon'
        OR (v_result->>'isServiceable')::boolean IS DISTINCT FROM false THEN
-    RAISE EXCEPTION 'Coming-soon area is not publicly visible and safely blocked: public=%, result=%', v_public, v_result;
+    RAISE EXCEPTION 'Coming-soon exact check is not safely blocked: %', v_result;
   END IF;
 END $$;
 RESET ROLE;
@@ -242,12 +243,6 @@ BEGIN
   IF (public.check_delivery_serviceability(23.215,72.635,'382021','Sector 21','Sector 21','lunch')->>'status') <> 'unavailable' THEN
     RAISE EXCEPTION 'Paused area still accepts serviceability checks';
   END IF;
-  IF EXISTS (
-    SELECT 1 FROM jsonb_array_elements(public.list_public_delivery_areas()) entry
-    WHERE entry->>'name' = 'Sector 21 pilot'
-  ) THEN
-    RAISE EXCEPTION 'Paused area is still exposed in the public list';
-  END IF;
 END $$;
 RESET ROLE;
 
@@ -260,4 +255,4 @@ BEGIN
 END $$;
 
 ROLLBACK;
-SELECT 'PASS: admin-only polygon areas, available/coming-soon/paused lifecycle, cloud waitlist, address quote and audit' AS result;
+SELECT 'PASS: private area discovery, retired legacy rules, exact available/coming-soon/paused lifecycle, waitlist, quote and audit' AS result;

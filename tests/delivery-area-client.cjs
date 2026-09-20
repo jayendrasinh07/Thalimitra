@@ -25,6 +25,8 @@ assert.match(managementSource, /referenceLayerRef/);
 assert.match(managementSource, /Click any saved boundary to edit it/);
 assert.match(managementSource, /Coming soon/);
 assert.match(managementSource, /Paused/);
+assert.match(managementSource, /Retired legacy records/);
+assert.match(managementSource, /do not accept new orders/);
 
 const source = readFileSync('src/services/deliveryAreaService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')

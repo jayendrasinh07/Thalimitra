@@ -96,7 +96,9 @@ export const DeliveryAreaManagement = () => {
   const createNew = () => {
     setSelectedId(null); setDraft(EMPTY_DRAFT); setPoints([]); setNotice(null); setError(null); setReviewingPublish(false);
   };
-  const statusCounts = document?.areas.reduce((counts, area) => ({ ...counts, [area.status]: counts[area.status] + 1 }), { available: 0, coming_soon: 0, paused: 0, draft: 0 }) ?? { available: 0, coming_soon: 0, paused: 0, draft: 0 };
+  const mappedAreas = document?.areas.filter(area => area.boundary) ?? [];
+  const legacyAreas = document?.areas.filter(area => !area.boundary) ?? [];
+  const statusCounts = mappedAreas.reduce((counts, area) => ({ ...counts, [area.status]: counts[area.status] + 1 }), { available: 0, coming_soon: 0, paused: 0, draft: 0 });
   const save = async (publishConfirmed = false) => {
     const isPublicStatus = draft.status === 'available' || draft.status === 'coming_soon';
     if (isPublicStatus && !publishConfirmed) {
@@ -137,9 +139,13 @@ export const DeliveryAreaManagement = () => {
             <StatusCount label="Draft" count={statusCounts.draft} tone="stone" />
           </div>
           <div className="max-h-[520px] divide-y divide-stone-100 overflow-y-auto">
-            {!loading && document?.areas.length === 0 && <p className="p-4 text-sm text-stone-500">No delivery area yet.</p>}
-            {document?.areas.map(area => <button key={area.id} type="button" onClick={() => choose(area)} className={`w-full p-4 text-left transition ${selectedId === area.id ? 'bg-emerald-50' : 'bg-white hover:bg-stone-50'}`}><div className="flex items-start justify-between gap-2"><p className="font-black text-stone-900">{area.name}</p><StatusBadge status={area.status} /></div><p className="mt-2 text-xs text-stone-500">{area.boundary ? 'Map boundary active' : 'Legacy sector/pincode rule'} · v{area.version}</p><p className="mt-1 text-xs font-bold text-stone-600">{[area.breakfast_enabled && 'Breakfast', area.lunch_enabled && 'Lunch', area.dinner_enabled && 'Dinner'].filter(Boolean).join(' · ') || 'No meal service'}</p></button>)}
+            {!loading && mappedAreas.length === 0 && <p className="p-4 text-sm text-stone-500">No map-based delivery area yet.</p>}
+            {mappedAreas.map(area => <button key={area.id} type="button" onClick={() => choose(area)} className={`w-full p-4 text-left transition ${selectedId === area.id ? 'bg-emerald-50' : 'bg-white hover:bg-stone-50'}`}><div className="flex items-start justify-between gap-2"><p className="font-black text-stone-900">{area.name}</p><StatusBadge status={area.status} /></div><p className="mt-2 text-xs text-stone-500">Map boundary active · v{area.version}</p><p className="mt-1 text-xs font-bold text-stone-600">{[area.breakfast_enabled && 'Breakfast', area.lunch_enabled && 'Lunch', area.dinner_enabled && 'Dinner'].filter(Boolean).join(' · ') || 'No meal service'}</p></button>)}
           </div>
+          {legacyAreas.length > 0 && <details className="border-t border-stone-200 bg-stone-50">
+            <summary className="cursor-pointer px-4 py-3 text-xs font-black text-stone-600">Retired legacy records ({legacyAreas.length})</summary>
+            <div className="space-y-2 border-t border-stone-200 p-3"><p className="text-[11px] leading-relaxed text-stone-500">Preserved for historical references only. These broad Phase-1 pincode/sector rules do not accept new orders.</p>{legacyAreas.map(area => <div key={area.id} className="rounded-xl border border-stone-200 bg-white p-3"><div className="flex items-start justify-between gap-2"><p className="text-xs font-black text-stone-700">{area.name}</p><StatusBadge status={area.status} /></div><p className="mt-1 text-[11px] text-stone-500">Retired compatibility record · v{area.version}</p></div>)}</div>
+          </details>}
         </div>
 
         <div className="space-y-5">

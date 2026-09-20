@@ -36,16 +36,14 @@ import { INITIAL_ONE_TIME_ORDERS } from '../data/orders';
 import { checkMealAvailability, istDate } from '../services/availabilityEngine';
 import { permissionManager } from '../services/permissionService';
 import { 
-  reverseGeocodeCoordinates, 
-  evaluateLocationServiceability,
-  getCachedLocation, 
+  reverseGeocodeCoordinates,
+  getCachedLocation,
   setCachedLocation, 
   getSavedAddresses, 
   saveAddressesToStorage, 
   DEFAULT_SAVED_ADDRESSES,
   EMPTY_DELIVERY_ADDRESS,
   checkAreaServiceability,
-  calculateDeliveryFeeForZone,
   getInitialCentralLocationState,
   validateOrderPayload,
   getDefaultAddressId
@@ -446,7 +444,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCachedLocation(resolved);
 
     const zoneId = (resolved.serviceability?.zoneId || (resolved.isServiceable ? 'zone_a_core' : 'unserviceable')) as 'zone_a_core' | 'zone_b_extended' | 'zone_c_periphery' | 'unserviceable';
-    const fee = calculateDeliveryFeeForZone(zoneId);
+    const fee = Number(resolved.serviceability?.deliveryFee || 0);
 
     setCentralLocation((prev) => ({
       ...prev,
@@ -542,7 +540,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const selectDeliveryAddress = useCallback((address: DeliveryAddress) => {
     setActiveDeliveryAddress(address);
-    const fee = calculateDeliveryFeeForZone(address.zoneId);
+    const fee = Number(address.deliveryFee || 0);
     
     setCentralLocation((prev) => ({
       ...prev,
@@ -590,9 +588,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return fallback;
     }
 
-    const serviceCheck = loc.serviceability || evaluateLocationServiceability(loc.latitude, loc.longitude, loc.area, loc.city, loc.pincode);
+    const serviceCheck: ServiceabilityResult = loc.serviceability || {
+      isServiceable: false,
+      status: 'unavailable',
+      services: { breakfast: false, lunch: false, dinner: false },
+      areaName: loc.area || 'Selected location',
+      sectorOrZone: loc.sector || loc.area || 'Selected location',
+      city: loc.city || 'Gandhinagar',
+      pincode: loc.pincode || '',
+      clusterId: '',
+      clusterName: '',
+      deliveryFee: 0,
+      message: 'Delivery availability could not be confirmed. Please try again.',
+      estimatedLunchSlot: 'N/A',
+      estimatedDinnerSlot: 'N/A',
+    };
     const zoneId = (serviceCheck.zoneId || (loc.isServiceable ? 'zone_a_core' : 'unserviceable')) as 'zone_a_core' | 'zone_b_extended' | 'zone_c_periphery';
-    const fee = calculateDeliveryFeeForZone(zoneId);
+    const fee = Number(serviceCheck.deliveryFee || 0);
 
     const newAddr: DeliveryAddress = {
       id: `addr-gps-${Date.now()}`,
