@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, MapPin, Plus, RefreshCw, RotateCcw, Save, Search, Undo2, X } from 'lucide-react';
-import { Map as MapLibreMap, NavigationControl, type StyleSpecification } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import { circleMarker, layerGroup, latLngBounds, map as createLeafletMap, polygon as leafletPolygon, polyline, tileLayer, type LayerGroup, type Map as LeafletMap } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   deliveryAreaService,
   type BoundaryGeometry,
@@ -12,21 +12,7 @@ import {
 import { getGooglePlaceDetails, searchGooglePlaces, type UnifiedPrediction } from '../../services/googleMapsLoader';
 
 type Point = [number, number];
-const MAP_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    carto: {
-      type: 'raster',
-      tiles: ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    },
-  },
-  layers: [
-    { id: 'map-background', type: 'background', paint: { 'background-color': '#f5f5f4' } },
-    { id: 'carto-light', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 20 },
-  ],
-};
+const MAP_TILES = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
 const EMPTY_DRAFT: DeliveryAreaDraft = {
   name: '', status: 'draft', boundary: null,
   breakfastEnabled: true, lunchEnabled: true, dinnerEnabled: true,
@@ -155,7 +141,8 @@ const NumberField = ({ label, value, min, max, onChange }: { label: string; valu
 
 const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onChange: (points: Point[]) => void; focusKey: string }) => {
   const container = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const boundaryLayerRef = useRef<LayerGroup | null>(null);
   const callback = useRef(onChange);
   const pointsRef = useRef(points);
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,39 +151,36 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
   const [searchError, setSearchError] = useState<string | null>(null);
   callback.current = onChange;
   pointsRef.current = points;
-  const geojson = useMemo(() => ({ type: 'FeatureCollection' as const, features: points.length ? [
-    { type: 'Feature' as const, properties: { kind: 'shape' }, geometry: points.length >= 3 ? boundaryFromPoints(points)! : { type: 'LineString' as const, coordinates: points } },
-    ...points.map((point, index) => ({ type: 'Feature' as const, properties: { kind: 'point', index: index + 1 }, geometry: { type: 'Point' as const, coordinates: point } })),
-  ] : [] }), [points]);
-  const geojsonRef = useRef(geojson);
-  geojsonRef.current = geojson;
 
-  const focusBoundary = (map: MapLibreMap, boundaryPoints: Point[]) => {
+  const focusBoundary = (map: LeafletMap, boundaryPoints: Point[]) => {
     if (!boundaryPoints.length) return;
-    const lngs = boundaryPoints.map(point => point[0]);
-    const lats = boundaryPoints.map(point => point[1]);
-    map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], {
-      padding: 56, maxZoom: 16, duration: 0,
-    });
+    const bounds = latLngBounds(boundaryPoints.map(([lng, lat]) => [lat, lng]));
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [48, 48], maxZoom: 16, animate: false });
   };
 
   useEffect(() => {
     if (!container.current) return;
-    const map = new MapLibreMap({ container: container.current, style: MAP_STYLE, center: [72.6369, 23.2156], zoom: 11.5, minZoom: 9, maxZoom: 19, attributionControl: { compact: true }, dragRotate: false, touchPitch: false });
-    mapRef.current = map; map.touchZoomRotate.disableRotation(); map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
-    map.on('load', () => {
-      map.addSource('boundary', { type: 'geojson', data: geojsonRef.current as never });
-      map.addLayer({ id: 'boundary-fill', type: 'fill', source: 'boundary', filter: ['==', ['get', 'kind'], 'shape'], paint: { 'fill-color': '#0D6E44', 'fill-opacity': 0.2 } });
-      map.addLayer({ id: 'boundary-line', type: 'line', source: 'boundary', filter: ['==', ['get', 'kind'], 'shape'], paint: { 'line-color': '#0D6E44', 'line-width': 3 } });
-      map.addLayer({ id: 'boundary-points', type: 'circle', source: 'boundary', filter: ['==', ['get', 'kind'], 'point'], paint: { 'circle-radius': 10, 'circle-color': '#D97706', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 } });
-      map.addLayer({ id: 'boundary-point-labels', type: 'symbol', source: 'boundary', filter: ['==', ['get', 'kind'], 'point'], layout: { 'text-field': ['to-string', ['get', 'index']], 'text-size': 11, 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#ffffff' } });
-      focusBoundary(map, pointsRef.current);
-    });
-    map.on('click', event => callback.current([...pointsRef.current, [Number(event.lngLat.lng.toFixed(6)), Number(event.lngLat.lat.toFixed(6))]]));
-    return () => { mapRef.current = null; map.remove(); };
+    const map = createLeafletMap(container.current, { center: [23.2156, 72.6369], zoom: 12, minZoom: 9, maxZoom: 19, zoomControl: true, attributionControl: true });
+    tileLayer(MAP_TILES, { maxZoom: 20, attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }).addTo(map);
+    const boundaryLayer = layerGroup().addTo(map);
+    mapRef.current = map;
+    boundaryLayerRef.current = boundaryLayer;
+    map.on('click', event => callback.current([...pointsRef.current, [Number(event.latlng.lng.toFixed(6)), Number(event.latlng.lat.toFixed(6))]]));
+    map.whenReady(() => { map.invalidateSize(); focusBoundary(map, pointsRef.current); });
+    return () => { boundaryLayerRef.current = null; mapRef.current = null; map.remove(); };
   }, []);
-  useEffect(() => { const source = mapRef.current?.getSource('boundary') as unknown as { setData: (data: unknown) => void } | undefined; source?.setData(geojson); }, [geojson]);
-  useEffect(() => { const map = mapRef.current; if (map?.loaded()) focusBoundary(map, pointsRef.current); }, [focusKey]);
+  useEffect(() => {
+    const layer = boundaryLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    const latLngs = points.map(([lng, lat]) => [lat, lng] as [number, number]);
+    if (latLngs.length >= 3) leafletPolygon(latLngs, { color: '#0D6E44', weight: 3, fillColor: '#0D6E44', fillOpacity: 0.2 }).addTo(layer);
+    else if (latLngs.length >= 2) polyline(latLngs, { color: '#0D6E44', weight: 3 }).addTo(layer);
+    latLngs.forEach((latLng, index) => circleMarker(latLng, { radius: 11, color: '#ffffff', weight: 3, fillColor: '#D97706', fillOpacity: 1 })
+      .bindTooltip(String(index + 1), { permanent: true, direction: 'center', className: 'border-0 bg-transparent font-black text-white shadow-none' })
+      .addTo(layer));
+  }, [points]);
+  useEffect(() => { const map = mapRef.current; if (map) focusBoundary(map, pointsRef.current); }, [focusKey]);
 
   const search = async () => {
     if (searchQuery.trim().length < 3) return;
@@ -214,7 +198,7 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
     setSearching(true); setSearchError(null);
     try {
       const place = await getGooglePlaceDetails(prediction.placeId, prediction);
-      mapRef.current?.flyTo({ center: [place.longitude, place.latitude], zoom: 15, essential: true });
+      mapRef.current?.flyTo([place.latitude, place.longitude], 15, { duration: 0.5 });
       setSearchQuery(prediction.mainText || prediction.description);
       setPredictions([]);
     } catch { setSearchError('This place could not be positioned on the map.'); }
@@ -228,6 +212,6 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
       {predictions.length > 0 && <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl">{predictions.map(prediction => <button key={prediction.placeId} type="button" onClick={() => void selectPrediction(prediction)} className="block w-full border-b border-stone-100 px-4 py-3 text-left last:border-0 hover:bg-stone-50"><span className="block text-sm font-bold text-stone-900">{prediction.mainText}</span><span className="mt-0.5 block text-xs text-stone-500">{prediction.secondaryText || prediction.description}</span></button>)}</div>}
       {searchError && <p role="alert" className="mt-2 text-xs font-bold text-amber-800">{searchError}</p>}
     </form>
-    <div className="relative mt-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"><div ref={container} className="absolute inset-0" /><div className="pointer-events-none absolute bottom-3 left-3 rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-stone-700 shadow"><MapPin size={14} className="mr-1 inline text-emerald-700" />{points.length} points</div></div>
+    <div className="relative mt-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"><div ref={container} aria-label="Delivery boundary map" className="absolute inset-0 z-0" /><div className="pointer-events-none absolute bottom-3 left-3 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-stone-700 shadow"><MapPin size={14} className="mr-1 inline text-emerald-700" />{points.length} points</div></div>
   </div>;
 };

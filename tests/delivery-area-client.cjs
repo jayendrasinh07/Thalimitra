@@ -9,9 +9,11 @@ assert.match(operationsHeaders, /connect-src[^\n]*https:\/\/nominatim\.openstree
 assert.match(operationsHeaders, /img-src[^\n]*https:\/\/basemaps\.cartocdn\.com/);
 
 const managementSource = readFileSync('src/components/kitchen/DeliveryAreaManagement.tsx', 'utf8');
-assert.match(managementSource, /const MAP_STYLE: StyleSpecification = \{/);
+assert.match(managementSource, /createLeafletMap/);
 assert.match(managementSource, /https:\/\/basemaps\.cartocdn\.com\/light_all/);
-assert.doesNotMatch(managementSource, /tiles\.openfreemap\.org\/styles/);
+assert.match(managementSource, /leafletPolygon/);
+assert.match(managementSource, /circleMarker/);
+assert.doesNotMatch(managementSource, /MapLibreMap/);
 
 const source = readFileSync('src/services/deliveryAreaService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')
