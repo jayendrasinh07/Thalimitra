@@ -23,6 +23,9 @@ CREATE INDEX IF NOT EXISTS area_waitlist_created_at_idx
   ON public.area_waitlist(created_at DESC);
 CREATE INDEX IF NOT EXISTS area_waitlist_area_created_idx
   ON public.area_waitlist(lower(area), created_at DESC);
+CREATE INDEX IF NOT EXISTS area_waitlist_user_id_idx
+  ON public.area_waitlist(user_id)
+  WHERE user_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.list_public_delivery_areas()
 RETURNS JSONB
