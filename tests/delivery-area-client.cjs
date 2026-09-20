@@ -3,6 +3,11 @@ const { stripTypeScriptTypes } = require('node:module');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
+const operationsHeaders = readFileSync('ops/public/_headers', 'utf8');
+assert.match(operationsHeaders, /connect-src[^\n]*https:\/\/tiles\.openfreemap\.org/);
+assert.match(operationsHeaders, /connect-src[^\n]*https:\/\/nominatim\.openstreetmap\.org/);
+assert.match(operationsHeaders, /img-src[^\n]*https:\/\/tiles\.openfreemap\.org/);
+
 const source = readFileSync('src/services/deliveryAreaService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')
   .replace(/export /g, '');
