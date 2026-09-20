@@ -4,6 +4,9 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
 const operationsHeaders = readFileSync('ops/public/_headers', 'utf8');
+const customerHeaders = readFileSync('public/_headers', 'utf8');
+assert.match(customerHeaders, /script-src[^\n]*https:\/\/static\.cloudflareinsights\.com/);
+assert.match(operationsHeaders, /script-src[^\n]*https:\/\/static\.cloudflareinsights\.com/);
 assert.match(operationsHeaders, /connect-src[^\n]*https:\/\/basemaps\.cartocdn\.com/);
 assert.match(operationsHeaders, /connect-src[^\n]*https:\/\/nominatim\.openstreetmap\.org/);
 assert.match(operationsHeaders, /img-src[^\n]*https:\/\/basemaps\.cartocdn\.com/);
