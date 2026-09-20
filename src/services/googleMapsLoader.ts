@@ -743,8 +743,8 @@ export async function searchGooglePlaces(
     }
   }
 
-  // 2. Try Google Maps Places Autocomplete if available
-  try {
+  // 2. Try Google Maps Places Autocomplete only when the optional key is configured.
+  if (getGoogleMapsApiKey()) try {
     const maps = await loadGoogleMapsApi();
     if (maps?.places?.AutocompleteSuggestion) {
       // Modern Places API (New)

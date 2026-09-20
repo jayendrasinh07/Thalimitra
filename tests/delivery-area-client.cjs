@@ -14,6 +14,8 @@ assert.match(managementSource, /https:\/\/basemaps\.cartocdn\.com\/light_all/);
 assert.match(managementSource, /leafletPolygon/);
 assert.match(managementSource, /circleMarker/);
 assert.doesNotMatch(managementSource, /MapLibreMap/);
+assert.match(managementSource, /Use as draft boundary/);
+assert.match(managementSource, /searchDeliveryAreaBoundaries/);
 
 const source = readFileSync('src/services/deliveryAreaService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')

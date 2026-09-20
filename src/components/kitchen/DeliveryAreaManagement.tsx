@@ -9,7 +9,7 @@ import {
   type DeliveryAreaDraft,
   type ManagedDeliveryArea,
 } from '../../services/deliveryAreaService';
-import { getGooglePlaceDetails, searchGooglePlaces, type UnifiedPrediction } from '../../services/googleMapsLoader';
+import { searchDeliveryAreaBoundaries, type DeliveryAreaPrediction } from '../../services/areaBoundarySearch';
 
 type Point = [number, number];
 const MAP_TILES = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
@@ -143,11 +143,13 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const boundaryLayerRef = useRef<LayerGroup | null>(null);
+  const previewLayerRef = useRef<LayerGroup | null>(null);
   const callback = useRef(onChange);
   const pointsRef = useRef(points);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
-  const [predictions, setPredictions] = useState<UnifiedPrediction[]>([]);
+  const [predictions, setPredictions] = useState<DeliveryAreaPrediction[]>([]);
+  const [preview, setPreview] = useState<DeliveryAreaPrediction | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   callback.current = onChange;
   pointsRef.current = points;
@@ -163,11 +165,13 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
     const map = createLeafletMap(container.current, { center: [23.2156, 72.6369], zoom: 12, minZoom: 9, maxZoom: 19, zoomControl: true, attributionControl: true });
     tileLayer(MAP_TILES, { maxZoom: 20, attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }).addTo(map);
     const boundaryLayer = layerGroup().addTo(map);
+    const previewLayer = layerGroup().addTo(map);
     mapRef.current = map;
     boundaryLayerRef.current = boundaryLayer;
+    previewLayerRef.current = previewLayer;
     map.on('click', event => callback.current([...pointsRef.current, [Number(event.latlng.lng.toFixed(6)), Number(event.latlng.lat.toFixed(6))]]));
     map.whenReady(() => { map.invalidateSize(); focusBoundary(map, pointsRef.current); });
-    return () => { boundaryLayerRef.current = null; mapRef.current = null; map.remove(); };
+    return () => { previewLayerRef.current = null; boundaryLayerRef.current = null; mapRef.current = null; map.remove(); };
   }, []);
   useEffect(() => {
     const layer = boundaryLayerRef.current;
@@ -180,38 +184,52 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
       .bindTooltip(String(index + 1), { permanent: true, direction: 'center', className: 'border-0 bg-transparent font-black text-white shadow-none' })
       .addTo(layer));
   }, [points]);
+  useEffect(() => {
+    const layer = previewLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!preview) return;
+    const latLngs = preview.outline.map(([lng, lat]) => [lat, lng] as [number, number]);
+    leafletPolygon(latLngs, {
+      color: '#D97706', weight: 3, dashArray: '8 7', fillColor: '#F59E0B', fillOpacity: 0.14,
+    }).addTo(layer);
+  }, [preview]);
   useEffect(() => { const map = mapRef.current; if (map) focusBoundary(map, pointsRef.current); }, [focusKey]);
 
   const search = async () => {
     if (searchQuery.trim().length < 3) return;
     setSearching(true); setSearchError(null);
     try {
-      const results = await searchGooglePlaces(searchQuery, { lat: 23.2156, lng: 72.6369 });
+      const results = await searchDeliveryAreaBoundaries(searchQuery);
       setPredictions(results.slice(0, 5));
+      const first = results[0];
+      if (first) {
+        setPreview(first);
+        const map = mapRef.current;
+        if (map) focusBoundary(map, first.outline);
+      }
       if (!results.length) setSearchError('No matching place found. Try a society, road, sector or landmark.');
     } catch {
       setPredictions([]); setSearchError('Map search is temporarily unavailable. You can still move the map manually.');
     } finally { setSearching(false); }
   };
 
-  const selectPrediction = async (prediction: UnifiedPrediction) => {
-    setSearching(true); setSearchError(null);
-    try {
-      const place = await getGooglePlaceDetails(prediction.placeId, prediction);
-      mapRef.current?.flyTo([place.latitude, place.longitude], 15, { duration: 0.5 });
-      setSearchQuery(prediction.mainText || prediction.description);
-      setPredictions([]);
-    } catch { setSearchError('This place could not be positioned on the map.'); }
-    finally { setSearching(false); }
+  const selectPrediction = (prediction: DeliveryAreaPrediction) => {
+    setPreview(prediction);
+    setSearchQuery(prediction.mainText || prediction.description);
+    setPredictions([]);
+    const map = mapRef.current;
+    if (map) focusBoundary(map, prediction.outline);
   };
 
   return <div>
     <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-stone-500">Map boundary</p><p className="mt-1 text-xs text-stone-500">Search the area, then click around the roads or societies you can actually deliver to.</p></div><div className="flex gap-2"><button type="button" onClick={() => onChange(points.slice(0, -1))} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><Undo2 size={14} />Undo</button><button type="button" onClick={() => onChange([])} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><RotateCcw size={14} />Clear</button></div></div>
     <form onSubmit={event => { event.preventDefault(); void search(); }} className="relative mt-3">
-      <div className="flex gap-2"><label className="relative min-w-0 flex-1"><span className="sr-only">Search map area</span><Search size={16} className="pointer-events-none absolute left-3 top-3.5 text-stone-400" /><input value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setPredictions([]); setSearchError(null); }} placeholder="Search society, road, sector or landmark" className="min-h-11 w-full rounded-xl border border-stone-200 pl-10 pr-10 text-sm text-stone-900" />{searchQuery && <button type="button" onClick={() => { setSearchQuery(''); setPredictions([]); setSearchError(null); }} aria-label="Clear map search" className="absolute right-2 top-2 rounded-lg p-2 text-stone-400 hover:bg-stone-100"><X size={15} /></button>}</label><button type="submit" disabled={searching || searchQuery.trim().length < 3} className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-40">{searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}Find</button></div>
-      {predictions.length > 0 && <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl">{predictions.map(prediction => <button key={prediction.placeId} type="button" onClick={() => void selectPrediction(prediction)} className="block w-full border-b border-stone-100 px-4 py-3 text-left last:border-0 hover:bg-stone-50"><span className="block text-sm font-bold text-stone-900">{prediction.mainText}</span><span className="mt-0.5 block text-xs text-stone-500">{prediction.secondaryText || prediction.description}</span></button>)}</div>}
+      <div className="flex gap-2"><label className="relative min-w-0 flex-1"><span className="sr-only">Search map area</span><Search size={16} className="pointer-events-none absolute left-3 top-3.5 text-stone-400" /><input value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setPredictions([]); setPreview(null); setSearchError(null); }} placeholder="Search society, road, sector or landmark" className="min-h-11 w-full rounded-xl border border-stone-200 pl-10 pr-10 text-sm text-stone-900" />{searchQuery && <button type="button" onClick={() => { setSearchQuery(''); setPredictions([]); setPreview(null); setSearchError(null); }} aria-label="Clear map search" className="absolute right-2 top-2 rounded-lg p-2 text-stone-400 hover:bg-stone-100"><X size={15} /></button>}</label><button type="submit" disabled={searching || searchQuery.trim().length < 3} className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-40">{searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}Find</button></div>
+      {predictions.length > 0 && <div className="absolute z-[1000] mt-2 w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl">{predictions.map(prediction => <button key={prediction.placeId} type="button" onClick={() => selectPrediction(prediction)} className="block w-full border-b border-stone-100 px-4 py-3 text-left last:border-0 hover:bg-stone-50"><span className="flex items-center justify-between gap-3 text-sm font-bold text-stone-900"><span>{prediction.mainText}</span><span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase ${prediction.outlineKind === 'mapped' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{prediction.outlineKind === 'mapped' ? 'Mapped outline' : 'Approx. box'}</span></span><span className="mt-0.5 block text-xs text-stone-500">{prediction.secondaryText || prediction.description}</span></button>)}</div>}
       {searchError && <p role="alert" className="mt-2 text-xs font-bold text-amber-800">{searchError}</p>}
     </form>
     <div className="relative mt-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"><div ref={container} aria-label="Delivery boundary map" className="absolute inset-0 z-0" /><div className="pointer-events-none absolute bottom-3 left-3 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-stone-700 shadow"><MapPin size={14} className="mr-1 inline text-emerald-700" />{points.length} points</div></div>
+    {preview && <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-amber-950">Search preview: {preview.mainText}</p><p className="mt-1 text-xs text-amber-900">{preview.outlineKind === 'mapped' ? 'Orange outline comes from OpenStreetMap. Review the roads before using it.' : 'Only an approximate search box is available. Use it as a starting point, then adjust every corner before saving.'}</p></div><div className="flex shrink-0 gap-2"><button type="button" onClick={() => setPreview(null)} className="min-h-10 rounded-xl border border-amber-300 px-3 text-xs font-bold text-amber-950">Dismiss</button><button type="button" onClick={() => { onChange(preview.outline); setPreview(null); }} className="min-h-10 rounded-xl bg-amber-800 px-4 text-xs font-bold text-white">Use as draft boundary</button></div></div>}
   </div>;
 };
