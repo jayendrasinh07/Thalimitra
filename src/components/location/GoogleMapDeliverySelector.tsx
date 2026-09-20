@@ -588,6 +588,8 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   } : { ...localFallback, isServiceable: false, status: 'unavailable' as const,
     zoneId: 'unserviceable', deliveryFee: 0,
     message: availabilityError || 'Checking the exact delivery boundaryâ€¦' };
+  const waitlistRegistrationEnabled = !serverAvailability?.areaId
+    || serviceabilityResult.waitlistEnabled !== false;
 
   const handleInitiateConfirmLocation = () => {
     if (!resolvedAddress || isCheckingAvailability || availabilityError) return;
@@ -1299,7 +1301,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
               </div>
 
               {/* Waitlist Form */}
-              {serviceabilityResult.waitlistEnabled === false ? (
+              {!waitlistRegistrationEnabled ? (
                 <div className="rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-600">Please choose another address. Waitlist registration is currently paused for this area.</div>
               ) : !waitlistSubmitted ? (
                 <form onSubmit={handleJoinWaitlist} className="bg-white p-5 rounded-2xl border border-stone-200 space-y-4">
