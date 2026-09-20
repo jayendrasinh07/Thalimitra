@@ -15,6 +15,7 @@ def sql(query, check=True):
     return result
 
 u, address, meal, slot = [str(uuid.uuid4()) for _ in range(4)]
+zone = f"audit_concurrency_{uuid.uuid4().hex}"
 date = sql("select ((clock_timestamp() at time zone 'Asia/Kolkata')::date+1)::text").stdout.strip()
 
 def order(key, hold=False):
@@ -30,7 +31,11 @@ def parallel(fn, values):
 try:
     sql(f"""
       insert into auth.users(id,email,raw_user_meta_data) values('{u}','{u}@example.invalid','{{}}');
-      insert into public.addresses(id,user_id,recipient_name,recipient_phone,area,pincode) values('{address}','{u}','Concurrency test','0000000000','Kudasan','382421');
+      insert into public.delivery_zones(id,name,status,is_active,is_free_delivery,lunch_enabled,boundary)
+      values('{zone}','Concurrency boundary','available',true,true,true,
+        extensions.ST_Multi(extensions.ST_GeomFromGeoJSON('{{"type":"Polygon","coordinates":[[[10.0,10.0],[10.02,10.0],[10.02,10.02],[10.0,10.02],[10.0,10.0]]]}}')));
+      insert into public.addresses(id,user_id,recipient_name,recipient_phone,area,pincode,latitude,longitude)
+      values('{address}','{u}','Concurrency test','0000000000','Audit area','000000',10.01,10.01);
       insert into public.meals(id,name,meal_type,base_price) values('{meal}','Concurrency test','lunch',119);
       insert into public.menu_days(menu_date,is_published) values('{date}',true) on conflict(menu_date) do nothing;
       insert into public.menu_items(menu_day_id,meal_id,service_meal_types) select id,'{meal}',array['lunch'] from public.menu_days where menu_date='{date}';
@@ -48,8 +53,8 @@ try:
     assert sql(f"select count(*) from public.orders where user_id='{u}'").stdout.strip() == '1'
     def default_address(_):
         return sql(f"""begin;set local role authenticated;set local request.jwt.claim.sub='{u}';
-          insert into public.addresses(user_id,recipient_name,recipient_phone,area,pincode,is_default)
-          values('{u}','Concurrent default','0000000000','Kudasan','382421',true);select pg_sleep(0.2);commit;""",False)
+          insert into public.addresses(user_id,recipient_name,recipient_phone,area,pincode,is_default,latitude,longitude)
+          values('{u}','Concurrent default','0000000000','Audit area','000000',true,10.01,10.01);select pg_sleep(0.2);commit;""",False)
     results = parallel(default_address, [1, 2])
     assert all(r.returncode == 0 for r in results), [(r.stdout,r.stderr) for r in results]
     assert sql(f"select count(*) from public.addresses where user_id='{u}' and is_default").stdout.strip() == '1'
@@ -59,5 +64,6 @@ finally:
       delete from public.menu_items where meal_id='{meal}';
       delete from public.meals where id='{meal}';delete from public.delivery_slots where id='{slot}';
       delete from auth.users where id='{u}';
+      delete from public.delivery_zones where id='{zone}';
       delete from public.menu_days d where menu_date='{date}' and not exists(select 1 from public.menu_items i where i.menu_day_id=d.id);
     """)
