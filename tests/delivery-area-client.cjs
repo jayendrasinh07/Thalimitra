@@ -12,9 +12,11 @@ const managementSource = readFileSync('src/components/kitchen/DeliveryAreaManage
 assert.match(managementSource, /createLeafletMap/);
 assert.match(managementSource, /https:\/\/basemaps\.cartocdn\.com\/light_all/);
 assert.match(managementSource, /leafletPolygon/);
-assert.match(managementSource, /circleMarker/);
+assert.match(managementSource, /draggable: true/);
+assert.match(managementSource, /insertBoundaryPoint/);
+assert.match(managementSource, /Remove point/);
 assert.doesNotMatch(managementSource, /MapLibreMap/);
-assert.match(managementSource, /Use as draft boundary/);
+assert.match(managementSource, /Use as editable draft/);
 assert.match(managementSource, /searchDeliveryAreaBoundaries/);
 
 const source = readFileSync('src/services/deliveryAreaService.ts', 'utf8')

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2, MapPin, Plus, RefreshCw, RotateCcw, Save, Search, Undo2, X } from 'lucide-react';
-import { circleMarker, layerGroup, latLngBounds, map as createLeafletMap, polygon as leafletPolygon, polyline, tileLayer, type LayerGroup, type Map as LeafletMap } from 'leaflet';
+import { AlertTriangle, CheckCircle2, Loader2, MapPin, Plus, RefreshCw, RotateCcw, Save, Search, Trash2, Undo2, X } from 'lucide-react';
+import { divIcon, layerGroup, latLngBounds, map as createLeafletMap, marker as leafletMarker, polygon as leafletPolygon, polyline, tileLayer, type LayerGroup, type Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   deliveryAreaService,
@@ -33,6 +33,26 @@ const pointsFromBoundary = (boundary: BoundaryGeometry | null): Point[] => {
 
 const boundaryFromPoints = (points: Point[]): BoundaryGeometry | null => points.length < 3 ? null : {
   type: 'Polygon', coordinates: [[...points, points[0]]],
+};
+
+const distanceToSegmentSquared = (point: Point, start: Point, end: Point) => {
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  if (!dx && !dy) return (point[0] - start[0]) ** 2 + (point[1] - start[1]) ** 2;
+  const position = Math.max(0, Math.min(1, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / (dx * dx + dy * dy)));
+  return (point[0] - (start[0] + position * dx)) ** 2 + (point[1] - (start[1] + position * dy)) ** 2;
+};
+
+export const insertBoundaryPoint = (points: Point[], point: Point): Point[] => {
+  if (points.length < 2) return [...points, point];
+  let insertionIndex = 1;
+  let shortestDistance = Number.POSITIVE_INFINITY;
+  const edgeCount = points.length >= 3 ? points.length : points.length - 1;
+  for (let index = 0; index < edgeCount; index += 1) {
+    const distance = distanceToSegmentSquared(point, points[index], points[(index + 1) % points.length]);
+    if (distance < shortestDistance) { shortestDistance = distance; insertionIndex = index + 1; }
+  }
+  return [...points.slice(0, insertionIndex), point, ...points.slice(insertionIndex)];
 };
 
 const draftFromArea = (area: ManagedDeliveryArea): DeliveryAreaDraft => ({
@@ -150,6 +170,7 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
   const [searching, setSearching] = useState(false);
   const [predictions, setPredictions] = useState<DeliveryAreaPrediction[]>([]);
   const [preview, setPreview] = useState<DeliveryAreaPrediction | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   callback.current = onChange;
   pointsRef.current = points;
@@ -169,7 +190,11 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
     mapRef.current = map;
     boundaryLayerRef.current = boundaryLayer;
     previewLayerRef.current = previewLayer;
-    map.on('click', event => callback.current([...pointsRef.current, [Number(event.latlng.lng.toFixed(6)), Number(event.latlng.lat.toFixed(6))]]));
+    map.on('click', event => {
+      const point: Point = [Number(event.latlng.lng.toFixed(6)), Number(event.latlng.lat.toFixed(6))];
+      callback.current(insertBoundaryPoint(pointsRef.current, point));
+      setSelectedPoint(null);
+    });
     map.whenReady(() => { map.invalidateSize(); focusBoundary(map, pointsRef.current); });
     return () => { previewLayerRef.current = null; boundaryLayerRef.current = null; mapRef.current = null; map.remove(); };
   }, []);
@@ -180,10 +205,28 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
     const latLngs = points.map(([lng, lat]) => [lat, lng] as [number, number]);
     if (latLngs.length >= 3) leafletPolygon(latLngs, { color: '#0D6E44', weight: 3, fillColor: '#0D6E44', fillOpacity: 0.2 }).addTo(layer);
     else if (latLngs.length >= 2) polyline(latLngs, { color: '#0D6E44', weight: 3 }).addTo(layer);
-    latLngs.forEach((latLng, index) => circleMarker(latLng, { radius: 11, color: '#ffffff', weight: 3, fillColor: '#D97706', fillOpacity: 1 })
-      .bindTooltip(String(index + 1), { permanent: true, direction: 'center', className: 'border-0 bg-transparent font-black text-white shadow-none' })
-      .addTo(layer));
-  }, [points]);
+    latLngs.forEach((latLng, index) => {
+      const isSelected = selectedPoint === index;
+      const marker = leafletMarker(latLng, {
+        draggable: true,
+        bubblingMouseEvents: false,
+        keyboard: true,
+        title: `Boundary point ${index + 1}. Drag to move or select to remove.`,
+        icon: divIcon({
+          className: '', iconSize: [32, 32], iconAnchor: [16, 16],
+          html: `<span style="display:flex;width:32px;height:32px;align-items:center;justify-content:center;border:3px solid white;border-radius:9999px;background:${isSelected ? '#0D6E44' : '#D97706'};color:white;font:800 12px system-ui;box-shadow:0 2px 8px rgba(0,0,0,.3)">${index + 1}</span>`,
+        }),
+      }).addTo(layer);
+      marker.on('click', () => setSelectedPoint(index));
+      marker.on('dragend', () => {
+        const moved = marker.getLatLng();
+        const next = [...pointsRef.current];
+        next[index] = [Number(moved.lng.toFixed(6)), Number(moved.lat.toFixed(6))];
+        callback.current(next);
+        setSelectedPoint(index);
+      });
+    });
+  }, [points, selectedPoint]);
   useEffect(() => {
     const layer = previewLayerRef.current;
     if (!layer) return;
@@ -194,7 +237,8 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
       color: '#D97706', weight: 3, dashArray: '8 7', fillColor: '#F59E0B', fillOpacity: 0.14,
     }).addTo(layer);
   }, [preview]);
-  useEffect(() => { const map = mapRef.current; if (map) focusBoundary(map, pointsRef.current); }, [focusKey]);
+  useEffect(() => { setSelectedPoint(null); const map = mapRef.current; if (map) focusBoundary(map, pointsRef.current); }, [focusKey]);
+  useEffect(() => { if (selectedPoint !== null && selectedPoint >= points.length) setSelectedPoint(null); }, [points.length, selectedPoint]);
 
   const search = async () => {
     if (searchQuery.trim().length < 3) return;
@@ -223,13 +267,14 @@ const BoundaryEditor = ({ points, onChange, focusKey }: { points: Point[]; onCha
   };
 
   return <div>
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-stone-500">Map boundary</p><p className="mt-1 text-xs text-stone-500">Search the area, then click around the roads or societies you can actually deliver to.</p></div><div className="flex gap-2"><button type="button" onClick={() => onChange(points.slice(0, -1))} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><Undo2 size={14} />Undo</button><button type="button" onClick={() => onChange([])} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><RotateCcw size={14} />Clear</button></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-stone-500">Map boundary</p><p className="mt-1 text-xs text-stone-500">Search an area, use its draft, then drag numbered points. Click the map to add a point on the nearest edge.</p></div><div className="flex gap-2"><button type="button" onClick={() => { onChange(points.slice(0, -1)); setSelectedPoint(null); }} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><Undo2 size={14} />Undo</button><button type="button" onClick={() => { onChange([]); setSelectedPoint(null); }} disabled={!points.length} className="flex min-h-10 items-center gap-1 rounded-xl border border-stone-200 px-3 text-xs font-bold text-stone-700 disabled:opacity-40"><RotateCcw size={14} />Clear</button></div></div>
     <form onSubmit={event => { event.preventDefault(); void search(); }} className="relative mt-3">
       <div className="flex gap-2"><label className="relative min-w-0 flex-1"><span className="sr-only">Search map area</span><Search size={16} className="pointer-events-none absolute left-3 top-3.5 text-stone-400" /><input value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setPredictions([]); setPreview(null); setSearchError(null); }} placeholder="Search society, road, sector or landmark" className="min-h-11 w-full rounded-xl border border-stone-200 pl-10 pr-10 text-sm text-stone-900" />{searchQuery && <button type="button" onClick={() => { setSearchQuery(''); setPredictions([]); setPreview(null); setSearchError(null); }} aria-label="Clear map search" className="absolute right-2 top-2 rounded-lg p-2 text-stone-400 hover:bg-stone-100"><X size={15} /></button>}</label><button type="submit" disabled={searching || searchQuery.trim().length < 3} className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-40">{searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}Find</button></div>
       {predictions.length > 0 && <div className="absolute z-[1000] mt-2 w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl">{predictions.map(prediction => <button key={prediction.placeId} type="button" onClick={() => selectPrediction(prediction)} className="block w-full border-b border-stone-100 px-4 py-3 text-left last:border-0 hover:bg-stone-50"><span className="flex items-center justify-between gap-3 text-sm font-bold text-stone-900"><span>{prediction.mainText}</span><span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase ${prediction.outlineKind === 'mapped' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{prediction.outlineKind === 'mapped' ? 'Mapped outline' : 'Approx. box'}</span></span><span className="mt-0.5 block text-xs text-stone-500">{prediction.secondaryText || prediction.description}</span></button>)}</div>}
       {searchError && <p role="alert" className="mt-2 text-xs font-bold text-amber-800">{searchError}</p>}
     </form>
     <div className="relative mt-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"><div ref={container} aria-label="Delivery boundary map" className="absolute inset-0 z-0" /><div className="pointer-events-none absolute bottom-3 left-3 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-stone-700 shadow"><MapPin size={14} className="mr-1 inline text-emerald-700" />{points.length} points</div></div>
-    {preview && <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-amber-950">Search preview: {preview.mainText}</p><p className="mt-1 text-xs text-amber-900">{preview.outlineKind === 'mapped' ? 'Orange outline comes from OpenStreetMap. Review the roads before using it.' : 'Only an approximate search box is available. Use it as a starting point, then adjust every corner before saving.'}</p></div><div className="flex shrink-0 gap-2"><button type="button" onClick={() => setPreview(null)} className="min-h-10 rounded-xl border border-amber-300 px-3 text-xs font-bold text-amber-950">Dismiss</button><button type="button" onClick={() => { onChange(preview.outline); setPreview(null); }} className="min-h-10 rounded-xl bg-amber-800 px-4 text-xs font-bold text-white">Use as draft boundary</button></div></div>}
+    {selectedPoint !== null && <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3"><p className="text-xs font-bold text-emerald-950">Point {selectedPoint + 1} selected. Drag it on the map to resize the area.</p><button type="button" onClick={() => { if (points.length > 3) onChange(points.filter((_, index) => index !== selectedPoint)); setSelectedPoint(null); }} disabled={points.length <= 3} className="flex min-h-10 shrink-0 items-center gap-1 rounded-xl border border-red-200 bg-white px-3 text-xs font-bold text-red-700 disabled:opacity-40"><Trash2 size={14} />Remove point</button></div>}
+    {preview && <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-amber-950">Search preview: {preview.mainText}</p><p className="mt-1 text-xs text-amber-900">{preview.outlineKind === 'mapped' ? 'Orange outline comes from OpenStreetMap. Review the roads before using it.' : 'Only an approximate search box is available. Use it as a starting point, then adjust every corner before saving.'}</p></div><div className="flex shrink-0 gap-2"><button type="button" onClick={() => setPreview(null)} className="min-h-10 rounded-xl border border-amber-300 px-3 text-xs font-bold text-amber-950">Dismiss</button><button type="button" onClick={() => { onChange(preview.outline); setPreview(null); setSelectedPoint(null); }} className="min-h-10 rounded-xl bg-amber-800 px-4 text-xs font-bold text-white">Use as editable draft</button></div></div>}
   </div>;
 };
