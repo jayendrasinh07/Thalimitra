@@ -1,5 +1,5 @@
 import { getSupabaseClient } from './supabaseClient';
-import { DeliveryAddress, AreaWaitlistEntry } from '../types';
+import { DeliveryAddress } from '../types';
 export const mapAddress = (r:any):DeliveryAddress => ({
  id:r.id,userId:r.user_id,label:r.label,customLabel:r.custom_label??undefined,name:r.recipient_name,fullName:r.recipient_name,phone:r.recipient_phone,
  houseNumber:r.house_flat_number??undefined,building:r.building_name??undefined,floor:r.floor??undefined,street:r.street??undefined,landmark:r.landmark??undefined,
@@ -20,6 +20,5 @@ export const addressService={
  async createAddress(userId:string|undefined,address:Omit<DeliveryAddress,'id'|'createdAt'|'updatedAt'>):Promise<DeliveryAddress>{if(!userId)throw new Error('Please sign in to save your delivery address.');const {data,error}=await getSupabaseClient().from('addresses').insert({...payloadFor(address),user_id:userId} as any).select().single();if(error)throw error;return mapAddress(data);},
  async updateAddress(id:string,updates:Partial<DeliveryAddress>,userId?:string):Promise<boolean>{if(!userId)throw new Error('Please sign in.');const {data,error}=await getSupabaseClient().from('addresses').update(payloadFor(updates) as any).eq('id',id).eq('user_id',userId).select('id').single();if(error)throw error;return Boolean(data);},
  async deleteAddress(id:string,userId?:string):Promise<boolean>{if(!userId)throw new Error('Please sign in.');const {data,error}=await getSupabaseClient().from('addresses').delete().eq('id',id).eq('user_id',userId).select('id').single();if(error)throw error;return Boolean(data);},
- async quoteAddress(id:string):Promise<{zoneId:string;deliveryFee:number;minOrderAmount:number}>{const {data,error}=await getSupabaseClient().rpc('quote_delivery_address',{p_address_id:id});if(error)throw error;return data as any;},
- async submitAreaWaitlist(entry:Omit<AreaWaitlistEntry,'id'|'createdAt'>):Promise<{success:boolean;error:Error|null}>{try{const {error}=await getSupabaseClient().from('area_waitlist').insert({name:entry.name,contact:entry.contact,area:entry.area,city:entry.city,pincode:entry.pincode,segment:entry.segment} as any);if(error)throw error;return{success:true,error:null};}catch(error){return{success:false,error:error as Error};}}
+ async quoteAddress(id:string):Promise<{zoneId:string;deliveryFee:number;minOrderAmount:number}>{const {data,error}=await getSupabaseClient().rpc('quote_delivery_address',{p_address_id:id});if(error)throw error;return data as any;}
 };

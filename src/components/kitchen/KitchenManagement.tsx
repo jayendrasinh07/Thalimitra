@@ -8,6 +8,7 @@ import {
 } from '../../services/kitchenManagementService';
 import { KitchenSupportQueue } from './KitchenSupportQueue';
 import { DeliveryAreaManagement } from './DeliveryAreaManagement';
+import { AreaWaitlistManagement } from './AreaWaitlistManagement';
 
 const formatTime = (value: string) => {
   const [hour, minute] = value.split(':').map(Number);
@@ -72,6 +73,7 @@ export const KitchenManagement = () => {
       <div className="flex min-h-6 items-center justify-between gap-3"><p role="status" aria-live="polite" className="text-sm font-bold text-emerald-700">{notice}</p><button type="button" onClick={() => void load()} disabled={loading || !!busy} className="flex min-h-10 items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 disabled:opacity-50"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} />Refresh</button></div>
 
       <DeliveryAreaManagement />
+      <AreaWaitlistManagement />
 
       <section className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
         <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Delivery controls</p><h2 className="mt-1 text-xl font-black text-stone-900">Slot capacity</h2><p className="mt-1 text-sm text-stone-500">Capacity means portions per delivery window. Breakfast closes the previous night at 10:00 PM; lunch at 10:30 AM; dinner at 5:30 PM.</p></div>

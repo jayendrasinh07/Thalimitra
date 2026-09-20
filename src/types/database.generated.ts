@@ -130,30 +130,45 @@ export type Database = {
           city: string
           contact: string
           created_at: string
+          formatted_address: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           pincode: string | null
           segment: string | null
+          source: string | null
+          user_id: string | null
         }
         Insert: {
           area: string
           city?: string
           contact: string
           created_at?: string
+          formatted_address?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           pincode?: string | null
           segment?: string | null
+          source?: string | null
+          user_id?: string | null
         }
         Update: {
           area?: string
           city?: string
           contact?: string
           created_at?: string
+          formatted_address?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           pincode?: string | null
           segment?: string | null
+          source?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -764,6 +779,22 @@ export type Database = {
         Returns: Json
       }
       get_delivery_areas: { Args: never; Returns: Json }
+      get_area_waitlist: { Args: never; Returns: Json }
+      list_public_delivery_areas: { Args: never; Returns: Json }
+      join_area_waitlist: {
+        Args: {
+          p_name: string
+          p_contact: string
+          p_area: string
+          p_city: string
+          p_pincode: string | null
+          p_formatted_address: string
+          p_latitude: number
+          p_longitude: number
+          p_source: string
+        }
+        Returns: string
+      }
       get_client_error_summary: { Args: never; Returns: Json }
       get_kitchen_management: { Args: never; Returns: Json }
       get_kitchen_menu: { Args: { p_menu_date: string }; Returns: Json }

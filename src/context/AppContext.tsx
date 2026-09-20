@@ -473,7 +473,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('GPS Location Detected', `${resolved.displayName}. Confirm your address to activate cluster delivery.`, 'success');
     } else {
       setLocationState('not-serviceable');
-      showToast('Outside Active Zone', resolved.serviceability?.message || `Thalimitra is currently not delivering to ${resolved.displayName}.`, 'warning');
+      showToast(resolved.serviceability?.status === 'coming_soon' ? 'Your area is coming soon' : 'Your area could be next', resolved.serviceability?.status === 'coming_soon' ? resolved.serviceability.message : 'Join the priority list and we will alert you when verified delivery opens here.', 'warning');
     }
   }, []);
 

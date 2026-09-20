@@ -31,6 +31,61 @@ BEGIN
 END $$;
 RESET ROLE;
 
+SET LOCAL ROLE anon;
+DO $$
+DECLARE
+  v_first UUID;
+  v_duplicate UUID;
+BEGIN
+  BEGIN
+    INSERT INTO public.area_waitlist(name, contact, area, city)
+    VALUES ('Blocked', 'blocked@example.invalid', 'Blocked', 'Gandhinagar');
+    RAISE EXCEPTION 'Direct public waitlist insert was allowed';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  v_first := public.join_area_waitlist(
+    'Interested Customer', '9000000011', 'Sector 4', 'Gandhinagar', '382004',
+    'Block A, Sector 4, Gandhinagar', 23.220, 72.650, 'map'
+  );
+  v_duplicate := public.join_area_waitlist(
+    'Interested Customer', '9000000011', 'Sector 4', 'Gandhinagar', '382004',
+    'Block A, Sector 4, Gandhinagar', 23.220, 72.650, 'map'
+  );
+  IF v_first IS NULL OR v_first IS DISTINCT FROM v_duplicate THEN
+    RAISE EXCEPTION 'Waitlist duplicate suppression failed';
+  END IF;
+END $$;
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE v_f JSONB := current_setting('test.delivery_areas')::jsonb;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', v_f->>'staff', true);
+  BEGIN
+    PERFORM public.get_area_waitlist();
+    RAISE EXCEPTION 'Kitchen staff opened Customer waitlist';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  v_f JSONB := current_setting('test.delivery_areas')::jsonb;
+  v_waitlist JSONB;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', v_f->>'admin', true);
+  v_waitlist := public.get_area_waitlist();
+  IF (v_waitlist->>'total')::integer <> 1
+     OR v_waitlist#>>'{entries,0,formatted_address}' <> 'Block A, Sector 4, Gandhinagar'
+     OR v_waitlist#>>'{entries,0,created_at}' IS NULL THEN
+    RAISE EXCEPTION 'Admin waitlist document is incomplete: %', v_waitlist;
+  END IF;
+END $$;
+RESET ROLE;
+
 SET LOCAL ROLE authenticated;
 DO $$
 DECLARE
@@ -51,6 +106,22 @@ BEGIN
     RAISE EXCEPTION 'Saved area missing from admin document: %', v_document;
   END IF;
   PERFORM set_config('test.delivery_area_id', v_area_id, true);
+END $$;
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+DO $$
+DECLARE v_public JSONB;
+BEGIN
+  v_public := public.list_public_delivery_areas();
+  IF NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(v_public) entry
+    WHERE entry->>'name' = 'Sector 21 pilot'
+      AND (entry#>>'{services,lunch}')::boolean
+      AND NOT (entry ? 'boundary')
+  ) THEN
+    RAISE EXCEPTION 'Public available-area list is incomplete or unsafe: %', v_public;
+  END IF;
 END $$;
 RESET ROLE;
 
@@ -152,4 +223,4 @@ BEGIN
 END $$;
 
 ROLLBACK;
-SELECT 'PASS: admin-only polygon areas, meal-specific serviceability, address quote, pause and audit' AS result;
+SELECT 'PASS: admin-only polygon areas, public area discovery, cloud waitlist, address quote, pause and audit' AS result;

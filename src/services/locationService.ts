@@ -8,8 +8,7 @@ import {
   DeliveryAddress, 
   DeliveryZone, 
   ServiceabilityResult, 
-  DetectedLocation, 
-  AreaWaitlistEntry,
+  DetectedLocation,
   CustomerSegment,
   DeliveryInstructionPreset
 } from '../types';
@@ -201,7 +200,7 @@ export function evaluateLocationServiceability(
     clusterId: '',
     clusterName: '',
     deliveryFee: 0,
-    message: `We're not delivering to ${areaName ? `"${areaName}"` : 'this location'} yet. Thalimitra currently serves Gandhinagar sectors (1–30), Infocity, Kudasan, PDPU Knowledge Corridor, and GIFT City.`,
+    message: `${areaName ? `“${areaName}”` : 'This area'} is outside today’s verified delivery route. Join the priority list and we will alert you when it opens.`,
     estimatedLunchSlot: 'N/A',
     estimatedDinnerSlot: 'N/A'
   };
@@ -471,8 +470,7 @@ export const DEFAULT_SAVED_ADDRESSES: DeliveryAddress[] = [];
 // ----------------------------------------------------
 const STORAGE_KEYS = {
   ACTIVE_LOCATION: 'teffein_active_delivery_location',
-  SAVED_ADDRESSES: 'teffein_saved_addresses',
-  WAITLIST: 'teffein_area_waitlist'
+  SAVED_ADDRESSES: 'teffein_saved_addresses'
 };
 
 export function getCachedLocation(): DetectedLocation | null { return null; }
@@ -624,23 +622,3 @@ export function validateOrderPayload(orderData: {
 
 
 export function saveAddressesToStorage(_addresses: DeliveryAddress[]): void { /* Addresses are loaded from the authenticated database only. */ }
-
-export function saveAreaWaitlistEntry(entry: Omit<AreaWaitlistEntry, 'id' | 'createdAt'>): AreaWaitlistEntry {
-  const newEntry: AreaWaitlistEntry = {
-    ...entry,
-    id: `WAIT-${Date.now()}`,
-    createdAt: new Date().toISOString()
-  };
-
-  if (typeof window !== 'undefined') {
-    try {
-      const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.WAITLIST) || '[]');
-      existing.unshift(newEntry);
-      localStorage.setItem(STORAGE_KEYS.WAITLIST, JSON.stringify(existing));
-    } catch {
-      // ignore
-    }
-  }
-
-  return newEntry;
-}

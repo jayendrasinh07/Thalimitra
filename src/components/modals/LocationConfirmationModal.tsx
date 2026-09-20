@@ -14,7 +14,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { AddressLabel, DeliveryInstructionPreset, DetectedLocation } from '../../types';
-import { saveAreaWaitlistEntry } from '../../services/locationService';
+import { joinAreaWaitlist } from '../../services/publicDeliveryAreaService';
 
 interface LocationConfirmationModalProps {
   isOpen: boolean;
@@ -48,6 +48,8 @@ export const LocationConfirmationModal: React.FC<LocationConfirmationModalProps>
   const [waitlistName, setWaitlistName] = useState(fullName);
   const [waitlistContact, setWaitlistContact] = useState(phone);
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
 
   if (!isOpen || !detectedLoc) return null;
 
@@ -84,20 +86,24 @@ export const LocationConfirmationModal: React.FC<LocationConfirmationModalProps>
     onClose();
   };
 
-  const handleJoinWaitlist = (e: React.FormEvent) => {
+  const handleJoinWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!waitlistName.trim() || !waitlistContact.trim()) return;
-
-    saveAreaWaitlistEntry({
-      name: waitlistName.trim(),
-      contact: waitlistContact.trim(),
-      area: detectedLoc.area || detectedLoc.displayName,
-      city: detectedLoc.city || 'Outside Gandhinagar',
-      pincode: detectedLoc.pincode
-    });
-
-    setWaitlistSubmitted(true);
-    showToast('Waitlist Joined', `We will notify you as soon as Thalimitra expands to ${detectedLoc.area || detectedLoc.displayName}!`, 'success');
+    if (!waitlistName.trim() || !waitlistContact.trim() || waitlistSubmitting) return;
+    setWaitlistSubmitting(true); setWaitlistError(null);
+    try {
+      await joinAreaWaitlist({
+        name: waitlistName.trim(), contact: waitlistContact.trim(),
+        area: detectedLoc.area || detectedLoc.displayName,
+        city: detectedLoc.city || 'Outside Gandhinagar', pincode: detectedLoc.pincode,
+        formattedAddress: detectedLoc.displayName,
+        latitude: detectedLoc.latitude, longitude: detectedLoc.longitude,
+        source: detectedLoc.source || 'gps',
+      });
+      setWaitlistSubmitted(true);
+      showToast('Priority alert is on', `We will notify you when delivery opens in ${detectedLoc.area || 'this area'}.`, 'success');
+    } catch (cause) {
+      setWaitlistError(cause instanceof Error ? cause.message : 'Your request could not be saved. Please try again.');
+    } finally { setWaitlistSubmitting(false); }
   };
 
   return (
@@ -148,7 +154,7 @@ export const LocationConfirmationModal: React.FC<LocationConfirmationModalProps>
                       ? 'bg-emerald-200/60 text-emerald-900' 
                       : 'bg-rose-200/60 text-rose-900'
                   }`}>
-                    {isServiceable ? 'Serviceable Area' : 'Outside Active Zone'}
+                    {isServiceable ? 'Delivery available' : 'Your area could be next'}
                   </span>
                 </div>
 
@@ -271,15 +277,15 @@ export const LocationConfirmationModal: React.FC<LocationConfirmationModalProps>
           ) : (
             /* Outside Zone Waitlist Form */
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-stone-100 border border-stone-200 text-xs text-stone-600 leading-relaxed">
-                Thalimitra is currently serving Gandhinagar sectors (1–30), Infocity, Kudasan, PDPU Knowledge Corridor, and GIFT City.
-                Join our waitlist to be first in line when we expand to your neighborhood!
+              <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 text-sm leading-relaxed text-stone-700">
+                <p className="font-black text-stone-950">Not here yet — but your area could be next.</p>
+                <p className="mt-1 text-xs">We open only verified delivery routes. Join the priority list and we will alert you as soon as your doorstep opens.</p>
               </div>
 
               {waitlistSubmitted ? (
                 <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-[#0D6E44] shrink-0" />
-                  <span>Thank you! We've registered your interest for {detectedLoc.area || detectedLoc.displayName}.</span>
+                  <span>Your area is on our radar. We will contact you when verified delivery opens in {detectedLoc.area || detectedLoc.displayName}.</span>
                 </div>
               ) : (
                 <form onSubmit={handleJoinWaitlist} className="space-y-3">
@@ -303,10 +309,12 @@ export const LocationConfirmationModal: React.FC<LocationConfirmationModalProps>
                   </div>
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-[#0D6E44] text-white text-xs font-black hover:bg-[#08482C] transition-colors cursor-pointer"
+                    disabled={waitlistSubmitting}
+                    className="w-full rounded-xl bg-stone-950 py-2.5 text-xs font-black text-white transition-colors disabled:opacity-50"
                   >
-                    Notify Me When Available
+                    {waitlistSubmitting ? 'Saving…' : 'Notify me first'}
                   </button>
+                  {waitlistError && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-800">{waitlistError}</p>}
                 </form>
               )}
             </div>

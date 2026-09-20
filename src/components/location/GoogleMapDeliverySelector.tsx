@@ -14,7 +14,6 @@ import {
   ArrowRight,
   Loader2,
   CheckCircle2,
-  XCircle,
   X,
   AlertTriangle,
   AlertCircle,
@@ -31,7 +30,6 @@ import {
 } from '../../types';
 import {
   evaluateLocationServiceability,
-  saveAreaWaitlistEntry,
   CENTRAL_KITCHEN_COORDS
 } from '../../services/locationService';
 import {
@@ -45,6 +43,7 @@ import {
 } from '../../services/googleMapsLoader';
 import { OpenStreetMapCanvas } from './OpenStreetMapCanvas';
 import { checkCoordinateServiceability, type CoordinateServiceability } from '../../services/serviceabilityService';
+import { joinAreaWaitlist, listPublicDeliveryAreas, type PublicDeliveryArea } from '../../services/publicDeliveryAreaService';
 
 interface GoogleMapDeliverySelectorProps {
   onClose: () => void;
@@ -136,12 +135,21 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   const [waitlistName, setWaitlistName] = useState<string>(contactName);
   const [waitlistContact, setWaitlistContact] = useState<string>(contactPhone);
   const [waitlistSubmitted, setWaitlistSubmitted] = useState<boolean>(false);
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState<boolean>(false);
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
+  const [availableAreas, setAvailableAreas] = useState<PublicDeliveryArea[]>([]);
 
   // Saved address conflict state
   const [conflictingSavedAddress, setConflictingSavedAddress] = useState<DeliveryAddress | null>(null);
 
   // Request ID sequence counter to prevent race conditions
   const requestIdRef = useRef<number>(0);
+
+  useEffect(() => {
+    let active = true;
+    void listPublicDeliveryAreas().then(areas => { if (active) setAvailableAreas(areas); }).catch(() => { if (active) setAvailableAreas([]); });
+    return () => { active = false; };
+  }, []);
 
   // Debounce timers
   const geocodeDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -656,20 +664,33 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
     onClose();
   };
 
-  const handleJoinWaitlist = (e: React.FormEvent) => {
+  const handleJoinWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!waitlistName.trim() || !waitlistContact.trim() || !resolvedAddress) return;
+    if (!waitlistName.trim() || !waitlistContact.trim() || !resolvedAddress || waitlistSubmitting) return;
+    setWaitlistSubmitting(true); setWaitlistError(null);
+    try {
+      await joinAreaWaitlist({
+        name: waitlistName.trim(), contact: waitlistContact.trim(),
+        area: resolvedAddress.area || resolvedAddress.formattedAddress,
+        city: resolvedAddress.city || 'Outside Service Zone', pincode: resolvedAddress.pincode,
+        formattedAddress: resolvedAddress.formattedAddress,
+        latitude: mapCenter.lat, longitude: mapCenter.lng, source: locationSource,
+      });
+      setWaitlistSubmitted(true);
+      showToast('Priority alert is on', `We will notify you when delivery opens in ${resolvedAddress.area || 'this area'}.`, 'info');
+    } catch (cause) {
+      setWaitlistError(cause instanceof Error ? cause.message : 'Your request could not be saved. Please try again.');
+    } finally { setWaitlistSubmitting(false); }
+  };
 
-    saveAreaWaitlistEntry({
-      name: waitlistName.trim(),
-      contact: waitlistContact.trim(),
-      area: resolvedAddress.area || resolvedAddress.formattedAddress,
-      city: resolvedAddress.city || 'Outside Service Zone',
-      pincode: resolvedAddress.pincode
-    });
-
-    setWaitlistSubmitted(true);
-    showToast('Waitlist Joined', `We will notify ${waitlistContact} as soon as Thalimitra launches in ${resolvedAddress.area}!`, 'info');
+  const showAvailableArea = (area: PublicDeliveryArea) => {
+    setCurrentStep('map_selection');
+    setSearchQuery(area.name);
+    setMapCenter({ lat: area.latitude, lng: area.longitude });
+    setLocationSource('search');
+    void executeReverseGeocode(area.latitude, area.longitude);
+    googleMapInstanceRef.current?.panTo({ lat: area.latitude, lng: area.longitude });
+    googleMapInstanceRef.current?.setZoom(15);
   };
 
   return (
@@ -1257,18 +1278,24 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
           ) : (
             /* UNSERVICEABLE FLOW (DO NOT ALTER LOCATION) */
             <div className="space-y-6">
-              <div className="p-5 rounded-2xl bg-amber-50/90 border border-amber-200 space-y-3">
+              <div className="overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-white p-5 shadow-sm">
                 <div className="flex items-start gap-3">
-                  <XCircle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="rounded-2xl bg-white p-2.5 text-amber-700 shadow-sm"><MapPin className="h-5 w-5" /></div>
                   <div>
                     <h3 className="text-base font-black text-stone-900">
-                      {serviceabilityResult.status === 'coming_soon' ? 'Thalimitra is coming soon here.' : "We're not delivering to this location yet."}
+                      {serviceabilityResult.status === 'coming_soon' ? 'Your neighbourhood is next on our route.' : 'Not here yet — but your area could be next.'}
                     </h3>
-                    <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-                      {serviceabilityResult.message}
+                    <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                      We open delivery only after a route is verified for reliable, on-time meals. Join the priority list and we will alert you as soon as your doorstep opens.
                     </p>
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-black text-emerald-950">Delivering now</p><p className="mt-0.5 text-xs text-emerald-800">Choose a verified area to view it on the map.</p></div><Truck className="h-5 w-5 text-emerald-700" /></div>
+                {availableAreas.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{availableAreas.map(area => <button key={area.id} type="button" onClick={() => showAvailableArea(area)} className="flex min-h-10 items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 text-xs font-black text-emerald-900 shadow-sm transition hover:border-emerald-500"><MapPin className="h-3.5 w-3.5" />{area.name}<ChevronRight className="h-3.5 w-3.5" /></button>)}</div>
+                  : <p className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs font-semibold text-emerald-900">Verified areas will appear here as soon as Operations publishes them.</p>}
               </div>
 
               {/* Waitlist Form */}
@@ -1278,8 +1305,9 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                 <form onSubmit={handleJoinWaitlist} className="bg-white p-5 rounded-2xl border border-stone-200 space-y-4">
                   <div className="flex items-center gap-2 text-stone-900 font-black text-sm">
                     <Bell className="w-4 h-4 text-amber-600" />
-                    <span>Get Notified When Thalimitra Launches Here</span>
+                    <span>Put my area on the priority list</span>
                   </div>
+                  <p className="text-xs leading-relaxed text-stone-500">We will save this searched location with your contact so the team can plan the next delivery route.</p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
@@ -1305,7 +1333,8 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
+                  {waitlistError && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-800">{waitlistError}</p>}
+                  <div className="flex items-center justify-between gap-3 pt-2">
                     <button
                       type="button"
                       onClick={() => setCurrentStep('map_selection')}
@@ -1315,18 +1344,19 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md cursor-pointer"
+                      disabled={waitlistSubmitting}
+                      className="flex min-h-10 items-center gap-2 rounded-xl bg-stone-950 px-5 py-2.5 text-xs font-black text-white shadow-md disabled:opacity-50"
                     >
-                      Notify Me
+                      {waitlistSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}{waitlistSubmitting ? 'Saving…' : 'Notify me first'}
                     </button>
                   </div>
                 </form>
               ) : (
                 <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
                   <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                  <div className="text-sm font-black text-emerald-950">You're on the priority list!</div>
+                  <div className="text-sm font-black text-emerald-950">Your area is on our radar.</div>
                   <p className="text-xs text-emerald-800">
-                    We'll contact you immediately once Thalimitra meal delivery expands to {resolvedAddress?.area}.
+                    We saved your request and will contact you when verified delivery opens in {resolvedAddress?.area || 'this area'}.
                   </p>
                   <button
                     onClick={() => setCurrentStep('map_selection')}
