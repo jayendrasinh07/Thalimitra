@@ -780,7 +780,16 @@ export async function searchGooglePlaces(
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 2500);
 
-      const searchUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ' Gandhinagar Gujarat')}&format=json&addressdetails=1&countrycodes=in&limit=4`;
+      const searchParameters = new URLSearchParams({
+        q: `${query}, Gujarat, India`,
+        format: 'jsonv2',
+        addressdetails: '1',
+        countrycodes: 'in',
+        limit: '4',
+        // Prefer Gandhinagar without hiding valid out-of-area searches.
+        viewbox: '72.55,23.35,72.75,23.05',
+      });
+      const searchUrl = `https://nominatim.openstreetmap.org/search?${searchParameters}`;
       const res = await fetch(searchUrl, {
         signal: controller.signal,
         headers: {

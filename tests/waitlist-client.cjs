@@ -4,11 +4,14 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
 const publicSource = readFileSync('src/services/publicDeliveryAreaService.ts', 'utf8');
+const mapsSource = readFileSync('src/services/googleMapsLoader.ts', 'utf8');
 assert.match(publicSource, /list_public_delivery_areas/);
 assert.match(publicSource, /join_area_waitlist/);
 assert.match(publicSource, /p_formatted_address/);
 assert.match(readFileSync('src/components/location/GoogleMapDeliverySelector.tsx', 'utf8'), /Not here yet — but your area could be next/);
 assert.match(readFileSync('src/components/kitchen/AreaWaitlistManagement.tsx', 'utf8'), /Notify-me requests/);
+assert.match(mapsSource, /q: `\$\{query\}, Gujarat, India`/);
+assert.doesNotMatch(mapsSource, /query \+ ' Gandhinagar Gujarat'/);
 
 const adminSource = readFileSync('src/services/areaWaitlistAdminService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')
