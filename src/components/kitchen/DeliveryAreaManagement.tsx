@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, MapPin, Plus, RefreshCw, RotateCcw, Save, Search, Undo2, X } from 'lucide-react';
-import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl';
+import { Map as MapLibreMap, NavigationControl, type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
   deliveryAreaService,
@@ -12,7 +12,21 @@ import {
 import { getGooglePlaceDetails, searchGooglePlaces, type UnifiedPrediction } from '../../services/googleMapsLoader';
 
 type Point = [number, number];
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
+const MAP_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    carto: {
+      type: 'raster',
+      tiles: ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    },
+  },
+  layers: [
+    { id: 'map-background', type: 'background', paint: { 'background-color': '#f5f5f4' } },
+    { id: 'carto-light', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 20 },
+  ],
+};
 const EMPTY_DRAFT: DeliveryAreaDraft = {
   name: '', status: 'draft', boundary: null,
   breakfastEnabled: true, lunchEnabled: true, dinnerEnabled: true,

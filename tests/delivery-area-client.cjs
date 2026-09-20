@@ -4,9 +4,14 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
 const operationsHeaders = readFileSync('ops/public/_headers', 'utf8');
-assert.match(operationsHeaders, /connect-src[^\n]*https:\/\/tiles\.openfreemap\.org/);
+assert.match(operationsHeaders, /connect-src[^\n]*https:\/\/basemaps\.cartocdn\.com/);
 assert.match(operationsHeaders, /connect-src[^\n]*https:\/\/nominatim\.openstreetmap\.org/);
-assert.match(operationsHeaders, /img-src[^\n]*https:\/\/tiles\.openfreemap\.org/);
+assert.match(operationsHeaders, /img-src[^\n]*https:\/\/basemaps\.cartocdn\.com/);
+
+const managementSource = readFileSync('src/components/kitchen/DeliveryAreaManagement.tsx', 'utf8');
+assert.match(managementSource, /const MAP_STYLE: StyleSpecification = \{/);
+assert.match(managementSource, /https:\/\/basemaps\.cartocdn\.com\/light_all/);
+assert.doesNotMatch(managementSource, /tiles\.openfreemap\.org\/styles/);
 
 const source = readFileSync('src/services/deliveryAreaService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')
