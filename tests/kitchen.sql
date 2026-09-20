@@ -11,8 +11,11 @@ BEGIN
  (staff,staff||'@example.invalid','{}'),(admin_id,admin_id||'@example.invalid','{}'),
  (delivery,delivery||'@example.invalid','{}'),(corporate,corporate||'@example.invalid','{}');
  INSERT INTO public.user_roles(user_id,role) VALUES(staff,'kitchen'),(admin_id,'admin'),(delivery,'delivery'),(corporate,'corporate');
- INSERT INTO public.addresses(user_id,recipient_name,recipient_phone,area,pincode)
- VALUES(owner_id,'Private customer','0000000000','Kudasan','382421') RETURNING id INTO addr;
+ UPDATE public.delivery_zones SET status='available',is_active=true,lunch_enabled=true,
+   boundary=extensions.ST_Multi(extensions.ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[72.62,23.17],[72.64,23.17],[72.64,23.19],[72.62,23.19],[72.62,23.17]]]}'))
+ WHERE id='zone_a_core';
+ INSERT INTO public.addresses(user_id,recipient_name,recipient_phone,area,pincode,latitude,longitude)
+ VALUES(owner_id,'Private customer','0000000000','Kudasan','382421',23.18,72.63) RETURNING id INTO addr;
  INSERT INTO public.meals(name,meal_type,base_price) VALUES('Frozen kitchen thali','lunch',100) RETURNING id INTO meal;
  INSERT INTO public.menu_days(menu_date,is_published) VALUES(d,true) ON CONFLICT(menu_date) DO UPDATE SET is_published=true RETURNING id INTO day;
  INSERT INTO public.menu_items(menu_day_id,meal_id,service_meal_types) VALUES(day,meal,ARRAY['lunch']);
