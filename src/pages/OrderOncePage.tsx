@@ -102,6 +102,7 @@ export const OrderOncePage: React.FC = () => {
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress>(() => {
     return (activeDeliveryAddress as CustomerAddress) || (savedAddresses && savedAddresses[0]) || EMPTY_DELIVERY_ADDRESS;
   });
+  const [addressEntryRequest, setAddressEntryRequest] = useState(0);
 
   // Step 5: Delivery Slot
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
@@ -283,7 +284,7 @@ export const OrderOncePage: React.FC = () => {
     if(currentStep>=4&&(!quote||!savedAddresses.some(a=>a.id===selectedAddress.id))){
       if(currentStep===4&&!currentUser){setIsAuthModalOpen(true);return;}
       if(currentStep===4&&!savedAddresses.some(a=>a.id===selectedAddress.id)){
-        if(savedAddresses.length===0)document.getElementById('add-delivery-address-btn')?.click();
+        if(savedAddresses.length===0)setAddressEntryRequest(value=>value+1);
         document.getElementById('order-address-panel')?.scrollIntoView({behavior:'smooth',block:'center'});
         return;
       }
@@ -550,6 +551,7 @@ export const OrderOncePage: React.FC = () => {
                 selectedAddress={selectedAddress}
                 onSelectAddress={(address) => { setSubmissionError(null); setSelectedAddress(address); }}
                 savedAddresses={savedAddresses}
+                addressEntryRequest={addressEntryRequest}
               />
             )}
 

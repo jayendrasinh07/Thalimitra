@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   MapPin, 
   Home, 
@@ -23,12 +23,14 @@ interface Step4AddressProps {
   selectedAddress: CustomerAddress;
   onSelectAddress: (addr: CustomerAddress) => void;
   savedAddresses?: CustomerAddress[];
+  addressEntryRequest?: number;
 }
 
 export const Step4Address: React.FC<Step4AddressProps> = ({
   selectedAddress,
   onSelectAddress,
-  savedAddresses = []
+  savedAddresses = [],
+  addressEntryRequest = 0
 }) => {
   const { 
     saveDeliveryAddress, 
@@ -65,6 +67,10 @@ export const Step4Address: React.FC<Step4AddressProps> = ({
     }
     setShowAddForm(true);
   };
+
+  useEffect(() => {
+    if (addressEntryRequest > 0 && currentUser && activeAddressList.length === 0) setShowAddForm(true);
+  }, [addressEntryRequest, currentUser, activeAddressList.length]);
 
   const handleSaveNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,22 +156,24 @@ export const Step4Address: React.FC<Step4AddressProps> = ({
               Where should we deliver?
             </h2>
           </div>
-          <button
-            id="add-delivery-address-btn"
-            type="button"
-            onClick={() => showAddForm ? setShowAddForm(false) : startAddressFlow()}
-            className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0D6E44] border border-emerald-200 text-xs font-black transition-colors flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
-          >
-            {showAddForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-            <span>{showAddForm ? 'Cancel' : currentUser ? 'Add New Address' : 'Sign In to Add Address'}</span>
-          </button>
+          {(activeAddressList.length > 0 || showAddForm) && (
+            <button
+              id="add-delivery-address-btn"
+              type="button"
+              onClick={() => showAddForm ? setShowAddForm(false) : startAddressFlow()}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0D6E44] border border-emerald-200 text-xs font-black transition-colors flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+            >
+              {showAddForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              <span>{showAddForm ? 'Cancel' : currentUser ? 'Add New Address' : 'Sign In to Add Address'}</span>
+            </button>
+          )}
         </div>
 
         {/* 1. Saved Addresses List */}
         {!showAddForm && (
           <div className="space-y-3">
             <label className="text-xs font-black uppercase tracking-wider text-stone-700 block">
-              Saved Delivery Addresses
+              {activeAddressList.length > 0 ? 'Saved Delivery Addresses' : 'Delivery Address'}
             </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
