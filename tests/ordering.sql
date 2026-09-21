@@ -102,7 +102,7 @@ BEGIN
   failed:=false; BEGIN PERFORM private.assert_order_window('2026-09-03','lunch',cutoff::timestamptz); EXCEPTION WHEN OTHERS THEN failed:=true; END;
   IF NOT failed THEN RAISE EXCEPTION 'Cutoff/date accepted at %',cutoff; END IF;
  END LOOP;
- IF has_function_privilege('anon','public.place_order_secure(date,text,uuid,uuid,uuid,integer,jsonb,text,uuid,jsonb)','EXECUTE') THEN RAISE EXCEPTION 'Anonymous checkout exposed'; END IF;
+ IF has_function_privilege('anon','public.place_order_secure(date,text,uuid,uuid,uuid,integer,jsonb,text,uuid,jsonb,text)','EXECUTE') THEN RAISE EXCEPTION 'Anonymous checkout exposed'; END IF;
  IF has_table_privilege('authenticated','public.orders','INSERT') THEN RAISE EXCEPTION 'Direct write privilege exposed'; END IF;
 END $$;
 ROLLBACK;

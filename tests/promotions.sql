@@ -43,7 +43,7 @@ BEGIN
   IF (quote->>'discount')::NUMERIC<>40 OR (quote->>'grand_total')::NUMERIC<>225 OR quote#>>'{applied_offer,code}'<>'AUDIT40' THEN RAISE EXCEPTION 'Promotion quote incorrect: %',quote; END IF;
   placed := public.place_order_secure((f->>'date')::DATE,'lunch',(f->>'slot')::UUID,(f->>'address_a')::UUID,(f->>'meal')::UUID,1,'[]',NULL,gen_random_uuid(),'{}','AUDIT40');
   IF (placed->>'discount')::NUMERIC<>40 OR (placed->>'grand_total')::NUMERIC<>225 OR placed->>'promotion_code_snapshot'<>'AUDIT40' THEN RAISE EXCEPTION 'Promotion order snapshot incorrect: %',placed; END IF;
-  IF (SELECT count(*) FROM private.promotion_redemptions WHERE order_id=(placed->>'id')::UUID)<>1 THEN RAISE EXCEPTION 'Redemption ledger missing'; END IF;
+  PERFORM set_config('test.promotion_order_id',placed->>'id',true);
   PERFORM public.cancel_customer_order((placed->>'id')::UUID);
   failed:=false; BEGIN PERFORM public.get_order_promotion_quote((f->>'date')::DATE,'lunch',(f->>'address_a')::UUID,(f->>'meal')::UUID,1,'[]','AUDIT40'); EXCEPTION WHEN OTHERS THEN failed:=true; END;
   IF NOT failed THEN RAISE EXCEPTION 'Cancellation silently restored one-use offer'; END IF;
@@ -55,11 +55,15 @@ BEGIN
 END $$;
 
 DO $$
-DECLARE f JSONB:=current_setting('test.promotion_fixture')::JSONB; campaign_id UUID; failed BOOLEAN;
+DECLARE f JSONB:=current_setting('test.promotion_fixture')::JSONB; document JSONB; campaign_id UUID; failed BOOLEAN;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub',f->>'admin',true);
   PERFORM set_config('request.jwt.claim.aal','aal2',true);
-  SELECT id INTO campaign_id FROM private.promotion_campaigns WHERE code='AUDIT40';
+  document := public.get_promotion_management();
+  SELECT (value->>'id')::UUID INTO campaign_id
+  FROM jsonb_array_elements(document->'campaigns')
+  WHERE value->>'code'='AUDIT40';
+  IF campaign_id IS NULL THEN RAISE EXCEPTION 'Admin offer document omitted AUDIT40'; END IF;
   failed:=false; BEGIN PERFORM public.delete_unused_promotion_campaign(campaign_id); EXCEPTION WHEN foreign_key_violation THEN failed:=true; END;
   IF NOT failed THEN RAISE EXCEPTION 'Used offer was deleted'; END IF;
 END $$;
@@ -67,6 +71,7 @@ RESET ROLE;
 
 DO $$
 BEGIN
+  IF (SELECT count(*) FROM private.promotion_redemptions WHERE order_id=current_setting('test.promotion_order_id')::UUID)<>1 THEN RAISE EXCEPTION 'Redemption ledger missing'; END IF;
   IF has_function_privilege('anon','public.get_order_promotion_quote(date,text,uuid,uuid,integer,jsonb,text)','EXECUTE') THEN RAISE EXCEPTION 'Anonymous promotion quote exposed'; END IF;
   IF has_table_privilege('authenticated','private.promotion_campaigns','SELECT') THEN RAISE EXCEPTION 'Private campaign table exposed'; END IF;
 END $$;
