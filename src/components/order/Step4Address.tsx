@@ -35,7 +35,9 @@ export const Step4Address: React.FC<Step4AddressProps> = ({
     detectUserLocation, 
     locationState,
     setIsLocationModalOpen,
-    centralLocation
+    centralLocation,
+    currentUser,
+    setIsAuthModalOpen
   } = useApp();
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -55,6 +57,14 @@ export const Step4Address: React.FC<Step4AddressProps> = ({
 
   const activeAddressList = savedAddresses;
   const [isSaving, setIsSaving] = useState(false);
+
+  const startAddressFlow = () => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setShowAddForm(true);
+  };
 
   const handleSaveNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +140,7 @@ export const Step4Address: React.FC<Step4AddressProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-5 sm:p-7 border border-stone-200 shadow-sm space-y-4">
+      <div id="order-address-panel" className="bg-white rounded-3xl p-5 sm:p-7 border border-stone-200 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-stone-100 pb-3">
           <div>
             <span className="text-[11px] font-black uppercase tracking-wider text-[#0D6E44] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -141,12 +151,13 @@ export const Step4Address: React.FC<Step4AddressProps> = ({
             </h2>
           </div>
           <button
+            id="add-delivery-address-btn"
             type="button"
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => showAddForm ? setShowAddForm(false) : startAddressFlow()}
             className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0D6E44] border border-emerald-200 text-xs font-black transition-colors flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
           >
             {showAddForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-            <span>{showAddForm ? 'Cancel' : 'Add New Address'}</span>
+            <span>{showAddForm ? 'Cancel' : currentUser ? 'Add New Address' : 'Sign In to Add Address'}</span>
           </button>
         </div>
 
@@ -158,7 +169,35 @@ export const Step4Address: React.FC<Step4AddressProps> = ({
             </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {activeAddressList.length===0 && <p className="text-sm text-stone-600">No saved addresses. Add your delivery address to continue.</p>}
+              {activeAddressList.length===0 && (
+                <div className="sm:col-span-2 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-5 sm:p-6">
+                  <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="rounded-2xl bg-[#0D6E44] p-3 text-white shadow-sm">
+                        {currentUser ? <MapPin className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Next: confirm delivery</p>
+                        <h3 className="mt-1 text-lg font-black tracking-tight text-stone-900">
+                          {currentUser ? 'Check delivery at your doorstep' : 'Save your meal. Add your delivery address.'}
+                        </h3>
+                        <p className="mt-1 max-w-xl text-sm leading-6 text-stone-600">
+                          {currentUser
+                            ? 'Add your exact address. We will confirm availability and the delivery fee before you choose a slot.'
+                            : 'Sign in once to keep this meal selected, save your address and check whether we deliver to your doorstep.'}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-bold text-stone-700">
+                          <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-600" />Exact area check</span>
+                          <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-600" />Meal selection stays here</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" onClick={startAddressFlow} className="min-h-12 shrink-0 rounded-xl bg-[#0D6E44] px-5 text-sm font-black text-white shadow-md shadow-emerald-950/15 transition hover:bg-[#08482C]">
+                      {currentUser ? 'Add delivery address' : 'Sign in & continue'}
+                    </button>
+                  </div>
+                </div>
+              )}
               {activeAddressList.map((addr) => {
                 const isSelected = selectedAddress.id === addr.id;
 

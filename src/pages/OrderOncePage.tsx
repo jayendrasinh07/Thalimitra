@@ -280,7 +280,16 @@ export const OrderOncePage: React.FC = () => {
     setSubmissionError(null);
     if(currentStep===1&&!checkMealAvailability({date:selectedDate,mealSlot:selectedMealSlot}).isAvailable){setSubmissionError('Ordering has closed. Please select another date or meal.');return;}
     if(currentStep>=2&&!selectedMeal.id){setSubmissionError('Choose a meal from the published menu.');return;}
-    if(currentStep>=4&&(!quote||!savedAddresses.some(a=>a.id===selectedAddress.id))){setSubmissionError(quoteError||'Sign in and save a serviceable delivery address.');return;}
+    if(currentStep>=4&&(!quote||!savedAddresses.some(a=>a.id===selectedAddress.id))){
+      if(currentStep===4&&!currentUser){setIsAuthModalOpen(true);return;}
+      if(currentStep===4&&!savedAddresses.some(a=>a.id===selectedAddress.id)){
+        if(savedAddresses.length===0)document.getElementById('add-delivery-address-btn')?.click();
+        document.getElementById('order-address-panel')?.scrollIntoView({behavior:'smooth',block:'center'});
+        return;
+      }
+      if(currentStep===4&&!quoteError)return;
+      setSubmissionError(quoteError||'Choose a delivery address available for this order.');return;
+    }
     if(currentStep===5&&(!activeSlotObj||activeSlotObj.maxCapacity-activeSlotObj.bookedCount<quantity)){setSubmissionError('Choose a slot with enough remaining portions.');return;}
     if (currentStep < 6) {
       const next = currentStep + 1;
@@ -539,7 +548,7 @@ export const OrderOncePage: React.FC = () => {
             {currentStep === 4 && (
               <Step4Address
                 selectedAddress={selectedAddress}
-                onSelectAddress={setSelectedAddress}
+                onSelectAddress={(address) => { setSubmissionError(null); setSelectedAddress(address); }}
                 savedAddresses={savedAddresses}
               />
             )}
@@ -614,11 +623,17 @@ export const OrderOncePage: React.FC = () => {
                 <button
                   type="button"
                   id="order-step-continue-btn"
-                  disabled={currentStep === 1 && !availability.isAvailable}
+                  disabled={(currentStep === 1 && !availability.isAvailable) || (currentStep === 4 && !!currentUser && savedAddresses.some(a=>a.id===selectedAddress.id) && !quote && !quoteError)}
                   onClick={handleNextStep}
                   className="px-7 py-3.5 rounded-2xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-950/15 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span>Continue to {ORDER_STEPS[currentStep]?.shortLabel || 'Next'}</span>
+                  <span>{currentStep === 4 && !currentUser
+                    ? 'Sign in & continue'
+                    : currentStep === 4 && !savedAddresses.some(a=>a.id===selectedAddress.id)
+                      ? savedAddresses.length === 0 ? 'Add address to continue' : 'Choose address to continue'
+                      : currentStep === 4 && !quote && !quoteError
+                        ? 'Checking delivery…'
+                        : `Continue to ${ORDER_STEPS[currentStep]?.shortLabel || 'Next'}`}</span>
                   <ArrowRight className="w-4 h-4 text-amber-300" />
                 </button>
               )}

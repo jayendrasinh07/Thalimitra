@@ -317,7 +317,7 @@ export const AuthModal: React.FC = () => {
           {/* Privacy & Trust Badge */}
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-stone-400 pt-2">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Encrypted PostgreSQL & Supabase Auth</span>
+            <span>{isKitchenSignIn ? 'Protected staff access • MFA verification required' : 'Secure sign-in • Your details stay private'}</span>
           </div>
 
           {!isSupabaseConfigured() && (
