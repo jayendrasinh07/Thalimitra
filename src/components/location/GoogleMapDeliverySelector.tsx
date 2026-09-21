@@ -58,6 +58,8 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
     detectUserLocation,
     selectDeliveryAddress,
     saveDeliveryAddress,
+    activeTab,
+    setActiveTab,
     showToast
   } = useApp();
 
@@ -112,8 +114,10 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   const [isSearchingPlaces, setIsSearchingPlaces] = useState<boolean>(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState<boolean>(false);
 
-  // Modal Step: 'map_selection' | 'serviceability_result' | 'conflict_warning'
-  const [currentStep, setCurrentStep] = useState<'map_selection' | 'serviceability_result' | 'conflict_warning'>('map_selection');
+  // Modal Step: selection, delivery check, saved confirmation, or address conflict.
+  const [currentStep, setCurrentStep] = useState<'map_selection' | 'serviceability_result' | 'saved_success' | 'conflict_warning'>('map_selection');
+  const [savedAddress, setSavedAddress] = useState<DeliveryAddress | null>(null);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
 
   // Manual Doorstep Details Form
   const [selectedLabel, setSelectedLabel] = useState<AddressLabel>('Home');
@@ -563,7 +567,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
   };
 
   const handleFinalConfirmAndSave = async () => {
-    if (!resolvedAddress) return;
+    if (!resolvedAddress || isSavingAddress) return;
 
     if (!contactPhone.trim()) {
       showToast('Phone Number Required', 'Please provide a contact phone number for meal delivery coordination.', 'warning');
@@ -625,10 +629,24 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       updatedAt: new Date().toISOString()
     };
 
+    setIsSavingAddress(true);
     try {
-      const saved=await saveDeliveryAddress(newDeliveryAddress);
-      if(onAddressConfirmed)onAddressConfirmed(saved);
-    }catch(error){showToast('Address not saved',(error as Error).message,'error');return;}
+      const saved = await saveDeliveryAddress(newDeliveryAddress);
+      setSavedAddress(saved);
+      if (onAddressConfirmed) onAddressConfirmed(saved);
+      setCurrentStep('saved_success');
+    } catch (error) {
+      showToast('Address not saved', (error as Error).message, 'error');
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
+  const handlePostSavePrimary = () => {
+    if (activeTab !== 'order_once') {
+      setActiveTab('todays_menu');
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    }
     onClose();
   };
 
@@ -660,7 +678,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
       <div className="px-5 py-4 bg-white border-b border-stone-200 flex items-center justify-between z-20 shrink-0">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-stone-900 tracking-tight flex items-center gap-2">
-            <span>Where should we deliver?</span>
+            <span>{currentStep === 'saved_success' ? 'Delivery address ready' : 'Where should we deliver?'}</span>
             {locationSource === 'gps' && gpsAccuracy && (
               <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                 GPS Verified
@@ -668,7 +686,9 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
             )}
           </h2>
           <p className="text-xs text-stone-500 font-medium">
-            Move the map to set your doorstep, or search your address.
+            {currentStep === 'saved_success'
+              ? 'Your verified address is selected for the next order.'
+              : 'Move the map to set your doorstep, or search your address.'}
           </p>
         </div>
 
@@ -1228,10 +1248,11 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
                 <button
                   type="button"
                   onClick={handleFinalConfirmAndSave}
-                  className="px-7 py-3 rounded-2xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-sm font-black shadow-lg shadow-emerald-950/15 hover:shadow-xl transition-all cursor-pointer flex items-center gap-2"
+                  disabled={isSavingAddress}
+                  className="px-7 py-3 rounded-2xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-sm font-black shadow-lg shadow-emerald-950/15 hover:shadow-xl transition-all cursor-pointer flex items-center gap-2 disabled:cursor-wait disabled:opacity-70"
                 >
-                  <span>Save & Confirm Location</span>
-                  <ArrowRight className="w-4 h-4 text-amber-300" />
+                  {isSavingAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="w-4 h-4 text-amber-300" />}
+                  <span>{isSavingAddress ? 'Saving address…' : 'Save & Confirm Location'}</span>
                 </button>
               </div>
             </div>
@@ -1322,6 +1343,62 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ----------------------------------------------------
+          STEP 3: SAVED ADDRESS CONFIRMATION & NEXT ACTION
+      ---------------------------------------------------- */}
+      {currentStep === 'saved_success' && savedAddress && (
+        <div className="flex flex-1 items-center justify-center overflow-y-auto p-5 sm:p-8">
+          <div className="w-full max-w-lg rounded-3xl border border-emerald-200 bg-white p-6 text-center shadow-sm sm:p-8">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-[#0D6E44]">
+              <CheckCircle2 className="h-8 w-8" />
+            </div>
+            <h3 className="mt-4 text-xl font-black text-stone-950">Address saved</h3>
+            <p className="mt-1 text-sm leading-relaxed text-stone-600">
+              This is now your selected delivery address. We will recheck the menu, cutoff and capacity before payment.
+            </p>
+
+            <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-left">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0D6E44] shadow-xs">
+                  <MapPin className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-black text-stone-900">{savedAddress.label}</span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">Delivery available</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{savedAddress.addressLine || savedAddress.addressLine1}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-200 pt-3">
+                {(['breakfast', 'lunch', 'dinner'] as const).filter(service => serviceabilityResult.services?.[service]).map(service => (
+                  <span key={service} className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-bold capitalize text-emerald-800">
+                    {service}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handlePostSavePrimary}
+              className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#0D6E44] px-5 py-3 text-sm font-black text-white shadow-lg shadow-emerald-950/15 transition hover:bg-[#08482C]"
+            >
+              <span>{activeTab === 'order_once' ? 'Continue checkout' : 'See menu & prices'}</span>
+              <ArrowRight className="h-4 w-4 text-amber-300" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 min-h-10 w-full rounded-xl px-4 py-2 text-xs font-bold text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
+            >
+              Done for now
+            </button>
+          </div>
         </div>
       )}
 
