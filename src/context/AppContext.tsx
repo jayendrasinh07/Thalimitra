@@ -238,9 +238,24 @@ const tabForPath = (): ActiveTab => isOpsBuild
         ? 'todays_menu'
         : 'home';
 
+const scrollToPublishedMenu = (attempt = 0) => {
+  window.requestAnimationFrame(() => {
+    const menuSection = document.getElementById('todays-menu-section');
+    if (menuSection) {
+      menuSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (attempt < 20) window.setTimeout(() => scrollToPublishedMenu(attempt + 1), 50);
+  });
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const initialLegalTab = legalTabForPath();
-  const [activeTab, setActiveTab] = useState<ActiveTab>(tabForPath);
+  const [activeTab, setActiveTabState] = useState<ActiveTab>(tabForPath);
+  const setActiveTab = useCallback((tab: ActiveTab) => {
+    setActiveTabState(tab);
+    if (tab === 'todays_menu' && activeTab === 'todays_menu') scrollToPublishedMenu();
+  }, [activeTab]);
   const [userRole, setUserRole] = useState<UserRole>('guest');
   const [subscription, setSubscription] = useState<UserSubscription>(INITIAL_USER_SUBSCRIPTION);
 
@@ -419,8 +434,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (destination && destination !== path) window.history.pushState(null, '', destination);
   }, [activeTab, isLegalModalOpen]);
 
-  // Window scroll to top on tab change
+  // Move every menu CTA to the actual published choices, including lazy-loaded first visits.
   useEffect(() => {
+    if (activeTab === 'todays_menu') {
+      scrollToPublishedMenu();
+      return;
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab]);
 

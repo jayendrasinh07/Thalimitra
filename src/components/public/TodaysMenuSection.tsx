@@ -68,7 +68,7 @@ export const TodaysMenuSection = () => {
   };
 
   return (
-    <section id="todays-menu-section" className="py-16 sm:py-20 bg-white border-y border-stone-200/80">
+    <section id="todays-menu-section" className="scroll-mt-24 py-16 sm:py-20 bg-white border-y border-stone-200/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-9">
           <div>
