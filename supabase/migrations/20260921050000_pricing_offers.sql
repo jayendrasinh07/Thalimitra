@@ -256,8 +256,8 @@ BEGIN
   IF p_starts_at IS NULL OR p_ends_at IS NULL OR p_ends_at<=p_starts_at OR (p_service_date_start IS NOT NULL AND p_service_date_end IS NOT NULL AND p_service_date_end<p_service_date_start) THEN RAISE EXCEPTION 'Check the offer dates' USING ERRCODE='22023'; END IF;
   IF cardinality(coalesce(p_eligible_meal_types,ARRAY[]::TEXT[]))=0 OR NOT coalesce(p_eligible_meal_types,ARRAY[]::TEXT[]) <@ ARRAY['breakfast','lunch','dinner']::TEXT[] THEN RAISE EXCEPTION 'Choose at least one meal service' USING ERRCODE='22023'; END IF;
   IF p_is_active AND p_ends_at<=clock_timestamp() THEN RAISE EXCEPTION 'An expired offer cannot be activated' USING ERRCODE='22023'; END IF;
-  IF EXISTS (SELECT 1 FROM unnest(coalesce(p_eligible_meal_ids,ARRAY[]::UUID[])) id LEFT JOIN public.meals m ON m.id=id WHERE m.id IS NULL) THEN RAISE EXCEPTION 'An eligible meal no longer exists'; END IF;
-  IF EXISTS (SELECT 1 FROM unnest(coalesce(p_eligible_zone_ids,ARRAY[]::TEXT[])) id LEFT JOIN public.delivery_zones z ON z.id=id WHERE z.id IS NULL) THEN RAISE EXCEPTION 'An eligible delivery area no longer exists'; END IF;
+  IF EXISTS (SELECT 1 FROM unnest(coalesce(p_eligible_meal_ids,ARRAY[]::UUID[])) AS candidate(id) LEFT JOIN public.meals m ON m.id=candidate.id WHERE m.id IS NULL) THEN RAISE EXCEPTION 'An eligible meal no longer exists'; END IF;
+  IF EXISTS (SELECT 1 FROM unnest(coalesce(p_eligible_zone_ids,ARRAY[]::TEXT[])) AS candidate(id) LEFT JOIN public.delivery_zones z ON z.id=candidate.id WHERE z.id IS NULL) THEN RAISE EXCEPTION 'An eligible delivery area no longer exists'; END IF;
 
   IF p_id IS NULL THEN
     INSERT INTO private.promotion_campaigns(id,code,name,description,discount_type,discount_value,minimum_subtotal,maximum_discount,total_budget,starts_at,ends_at,service_date_start,service_date_end,is_active,first_order_only,per_user_limit,eligible_meal_types,eligible_meal_ids,eligible_zone_ids,created_by,updated_by)
