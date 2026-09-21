@@ -320,6 +320,8 @@ export interface OneTimeOrder {
   addOnsTotal: number;
   deliveryFee: number;
   discount: number;
+  promotionCode?: string;
+  promotionName?: string;
   total: number;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;

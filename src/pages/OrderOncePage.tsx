@@ -39,6 +39,7 @@ import { CustomerAddress, DeliverySlot, OneTimeOrder, ServiceMealType } from '..
 import { EMPTY_DELIVERY_ADDRESS } from '../services/locationService';
 import { addressService } from '../services/addressService';
 import { dietLabel } from '../services/menuService';
+import { promotionService, type PromotionQuote } from '../services/promotionService';
 import { IMAGES } from '../data/images';
 
 type LandingOrderIntent = { date: string; slot: ServiceMealType; mealId: string };
@@ -126,6 +127,10 @@ export const OrderOncePage: React.FC = () => {
   const [menuError, setMenuError] = useState('');
   const [quote, setQuote] = useState<{deliveryFee:number;minOrderAmount:number}|null>(null);
   const [quoteError, setQuoteError] = useState('');
+  const [promotionCode, setPromotionCode] = useState('');
+  const [promotionQuote, setPromotionQuote] = useState<PromotionQuote | null>(null);
+  const [promotionLoading, setPromotionLoading] = useState(false);
+  const [promotionError, setPromotionError] = useState('');
   useEffect(() => {const timer=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(timer);},[]);
   useEffect(() => {setConfirmedOrder(null);setIsTrackingMode(false);setSelectedAddress(EMPTY_DELIVERY_ADDRESS);},[currentUser?.id]);
   useEffect(() => {if(confirmedOrder){const latest=oneTimeOrders.find(o=>o.id===confirmedOrder.id);if(latest)setConfirmedOrder(latest);}},[oneTimeOrders]);
@@ -162,6 +167,46 @@ export const OrderOncePage: React.FC = () => {
     return()=>{alive=false;};
   },[currentUser?.id,selectedAddress,savedAddresses]);
 
+  const promotionInput = useMemo(() => ({
+    orderDate: selectedDate,
+    mealType: selectedMealSlot,
+    addressId: selectedAddress.id,
+    mealId: selectedMeal.id,
+    quantity,
+    selectedAddons,
+  }), [selectedDate, selectedMealSlot, selectedAddress.id, selectedMeal.id, quantity, selectedAddons]);
+
+  useEffect(() => {
+    let alive = true;
+    setPromotionCode(''); setPromotionQuote(null); setPromotionError('');
+    if (currentStep !== 6 || !currentUser || !quote || !selectedMeal.id || !selectedAddress.id) return () => { alive = false; };
+    setPromotionLoading(true);
+    promotionService.quote(promotionInput)
+      .then(value => { if (alive) setPromotionQuote(value); })
+      .catch(error => { if (alive) setPromotionError(error.message || 'Offers could not be checked.'); })
+      .finally(() => { if (alive) setPromotionLoading(false); });
+    return () => { alive = false; };
+  }, [currentStep, currentUser?.id, quote, promotionInput]);
+
+  const applyPromotion = async (code: string) => {
+    if (!currentUser) { setIsAuthModalOpen(true); return; }
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) { setPromotionError('Enter an offer code.'); return; }
+    setPromotionLoading(true); setPromotionError('');
+    try {
+      const value = await promotionService.quote({ ...promotionInput, code: normalized });
+      setPromotionQuote(value); setPromotionCode(value.appliedOffer?.code ?? normalized);
+    } catch (error) {
+      setPromotionCode(normalized); setPromotionQuote(previous => previous ? { ...previous, discount: 0, appliedOffer: null, grandTotal: previous.mealsSubtotal + previous.addonsTotal + previous.deliveryFee } : null);
+      setPromotionError(error instanceof Error ? error.message : 'This offer could not be applied.');
+    } finally { setPromotionLoading(false); }
+  };
+
+  const removePromotion = () => {
+    setPromotionCode(''); setPromotionError('');
+    setPromotionQuote(previous => previous ? { ...previous, discount: 0, appliedOffer: null, grandTotal: previous.mealsSubtotal + previous.addonsTotal + previous.deliveryFee } : null);
+  };
+
   // Check Availability for selected Date & Meal Slot
   const availability = useMemo(() => {
     return checkMealAvailability({
@@ -193,7 +238,7 @@ export const OrderOncePage: React.FC = () => {
 
   // Price calculations for Live Sticky Summary
   const livePricing = useMemo(() => {
-    const mealsSubtotal = selectedMeal.basePrice * quantity;
+    let mealsSubtotal = selectedMeal.basePrice * quantity;
     let addonsTotal = 0;
     const addonLineItems: { name: string; qty: number; total: number }[] = [];
 
@@ -211,17 +256,24 @@ export const OrderOncePage: React.FC = () => {
       }
     });
 
-    const deliveryFee = quote?.deliveryFee ?? 0;
-    const total = mealsSubtotal + addonsTotal + deliveryFee;
+    let deliveryFee = quote?.deliveryFee ?? 0;
+    if (promotionQuote) {
+      mealsSubtotal = promotionQuote.mealsSubtotal;
+      addonsTotal = promotionQuote.addonsTotal;
+      deliveryFee = promotionQuote.deliveryFee;
+    }
+    const discount = promotionQuote?.discount ?? 0;
+    const total = Math.max(0, mealsSubtotal + addonsTotal + deliveryFee - discount);
 
     return {
       mealsSubtotal,
       addonsTotal,
       addonLineItems,
       deliveryFee,
+      discount,
       total
     };
-  }, [selectedMeal, quantity, selectedAddons, dbCustomizations, quote]);
+  }, [selectedMeal, quantity, selectedAddons, dbCustomizations, quote, promotionQuote]);
 
   // Navigation handlers
   const handleNextStep = () => {
@@ -341,7 +393,9 @@ export const OrderOncePage: React.FC = () => {
         subtotal: livePricing.mealsSubtotal,
         addOnsTotal: livePricing.addonsTotal,
         deliveryFee: livePricing.deliveryFee,
-        discount: 0,
+        discount: livePricing.discount,
+        promotionCode: promotionQuote?.appliedOffer?.code,
+        promotionName: promotionQuote?.appliedOffer?.name,
         total: livePricing.total,
         paymentMethod: 'CashOnDelivery',
         paymentStatus: 'PENDING',
@@ -520,6 +574,13 @@ export const OrderOncePage: React.FC = () => {
                 onConfirmOrder={handleConfirmOrder}
                 isSubmitting={isSubmitting}
                 deliveryFee={quote?.deliveryFee ?? 0}
+                promotionQuote={promotionQuote}
+                promotionCode={promotionCode}
+                promotionLoading={promotionLoading}
+                promotionError={promotionError}
+                onPromotionCodeChange={setPromotionCode}
+                onApplyPromotion={applyPromotion}
+                onRemovePromotion={removePromotion}
                 errorMessage={submissionError || quoteError}
               />
             )}
@@ -598,8 +659,10 @@ export const OrderOncePage: React.FC = () => {
                     <span>Cluster Delivery</span>
                     <span className="text-[9px]">{quote ? (quote.deliveryFee===0?'FREE':'') : 'Select address'}</span>
                   </span>
-                  <span className="font-black text-[#0D6E44]">{quote ? `₹${quote.deliveryFee}` : "—"}</span>
+                  <span className="font-black text-[#0D6E44]">{quote ? `₹${livePricing.deliveryFee}` : "—"}</span>
                 </div>
+
+                {livePricing.discount > 0 && <div className="flex items-center justify-between font-bold text-emerald-700"><span>{promotionQuote?.appliedOffer?.code || 'Offer'} savings</span><span className="font-mono">−₹{livePricing.discount}</span></div>}
 
                 <div className="flex items-center justify-between pt-2 border-t border-stone-200 text-sm font-black text-stone-900">
                   <span>Estimated Total</span>

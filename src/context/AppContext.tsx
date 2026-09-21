@@ -711,7 +711,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createOneTimeOrder = async (orderData:Omit<OneTimeOrder,'id'|'createdAt'|'traceabilityMealId'>):Promise<OneTimeOrder> => {
     if(!currentUser)throw new Error('Please sign in to place your order.');
     const owner=currentUser.id;
-    const result=await orderService.createOrder({userId:owner,addressId:orderData.address.id,orderDate:orderData.scheduledDate,mealType:orderData.mealSlot,deliverySlotId:orderData.deliverySlotId,mealId:orderData.mealId,quantity:orderData.quantity,selectedAddons:Object.fromEntries(orderData.addOns.map(a=>[a.id,a.quantity])),notes:orderData.notes,preferences:{spiceLevel:orderData.customizations.spiceLevel,oilLevel:orderData.customizations.oilLevel}});
+    const result=await orderService.createOrder({userId:owner,addressId:orderData.address.id,orderDate:orderData.scheduledDate,mealType:orderData.mealSlot,deliverySlotId:orderData.deliverySlotId,mealId:orderData.mealId,quantity:orderData.quantity,selectedAddons:Object.fromEntries(orderData.addOns.map(a=>[a.id,a.quantity])),notes:orderData.notes,promotionCode:orderData.promotionCode,preferences:{spiceLevel:orderData.customizations.spiceLevel,oilLevel:orderData.customizations.oilLevel}});
     if(result.error||!result.order)throw result.error??new Error('The server did not confirm this order.');
     if(authIdentity.current!==owner)throw new Error('Your account changed. Check the original account order history.');
     const order=result.order;setOneTimeOrders(prev=>[order,...prev.filter(o=>o.id!==order.id)]);setActiveTrackingOrder(order);

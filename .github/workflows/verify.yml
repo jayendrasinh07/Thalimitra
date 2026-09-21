@@ -46,6 +46,7 @@ jobs:
             psql -v ON_ERROR_STOP=1 -f "$migration"
           done
           psql -v ON_ERROR_STOP=1 -f tests/ordering.sql
+          psql -v ON_ERROR_STOP=1 -f tests/promotions.sql
           psql -v ON_ERROR_STOP=1 -f tests/kitchen.sql
           psql -v ON_ERROR_STOP=1 -f tests/management.sql
           psql -v ON_ERROR_STOP=1 -f tests/delivery-areas.sql

@@ -192,7 +192,14 @@ export const LegalModal: React.FC = () => {
               </div>
 
               <div>
-                <h4 className="font-bold text-stone-900 text-sm mb-1">5. Subscriptions</h4>
+                <h4 className="font-bold text-stone-900 text-sm mb-1">5. Offers & Coupon Codes</h4>
+                <p className="text-stone-600">
+                  Each offer is subject to the eligibility, minimum food value, meal service, delivery area, validity period, usage limit, and campaign limit shown at checkout. Only one offer may be used per order. Discounts apply to eligible meal and customization value unless stated otherwise, and do not reduce delivery charges. Thalimitra verifies the offer again when the order is placed; an expired, paused, exhausted, or ineligible offer will not be applied.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-stone-900 text-sm mb-1">6. Subscriptions</h4>
                 <p className="text-stone-600">
                   Paid subscriptions are not available. Any future subscription will have separate pricing, pause, cancellation, and refund terms displayed before purchase.
                 </p>
@@ -235,6 +242,13 @@ export const LegalModal: React.FC = () => {
                 <h4 className="font-bold text-stone-900 text-sm mb-1">4. Refund Processing Time</h4>
                 <p className="text-stone-600">
                   Approved refunds will be initiated to the original payment method within 2 business days. Razorpay states that a normal refund generally takes 5–7 working days after initiation, although the customer's bank or payment network may take longer. The refund reference will be shared when available. An unpaid or pending order that was never successfully charged does not create a refund.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-stone-900 text-sm mb-1">5. Offer Use After Cancellation</h4>
+                <p className="text-stone-600">
+                  Cancelling an order does not automatically restore a one-time coupon or promotion. Contact support with the order number if the cancellation resulted from a verified Thalimitra service failure; any replacement offer or account adjustment will be reviewed and recorded separately.
                 </p>
               </div>
             </div>

@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node tests/client.cjs && node tests/auth-recovery-client.cjs && node tests/customer-realtime-client.cjs && node tests/kitchen-client.cjs && node tests/kitchen-menu-client.cjs && node tests/kitchen-catalog-client.cjs && node tests/kitchen-shift-client.cjs && node tests/kitchen-management-client.cjs && node tests/delivery-area-client.cjs && node tests/delivery-area-search-client.cjs && node tests/waitlist-client.cjs && node tests/kitchen-analytics-client.cjs && node tests/kitchen-alert-client.cjs && node tests/support-client.cjs"
+    "test": "node tests/client.cjs && node tests/auth-recovery-client.cjs && node tests/customer-realtime-client.cjs && node tests/kitchen-client.cjs && node tests/kitchen-menu-client.cjs && node tests/kitchen-catalog-client.cjs && node tests/kitchen-shift-client.cjs && node tests/kitchen-management-client.cjs && node tests/promotion-client.cjs && node tests/delivery-area-client.cjs && node tests/delivery-area-search-client.cjs && node tests/waitlist-client.cjs && node tests/kitchen-analytics-client.cjs && node tests/kitchen-alert-client.cjs && node tests/support-client.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

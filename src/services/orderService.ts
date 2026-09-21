@@ -2,7 +2,7 @@ import { getSupabaseClient } from './supabaseClient';
 import { CancellationReason, OneTimeOrder, PaymentStatus, OrderStatus, ServiceMealType } from '../types';
 import { mapAddress } from './addressService';
 import { dietLabel } from './menuService';
-export interface CreateOrderPayload {userId:string;addressId:string;orderDate:string;mealType:ServiceMealType;deliverySlotId:string;mealId:string;quantity:number;selectedAddons:Record<string,number>;notes?:string;preferences:{spiceLevel:string;oilLevel:string};}
+export interface CreateOrderPayload {userId:string;addressId:string;orderDate:string;mealType:ServiceMealType;deliverySlotId:string;mealId:string;quantity:number;selectedAddons:Record<string,number>;notes?:string;promotionCode?:string;preferences:{spiceLevel:string;oilLevel:string};}
 const pending=new Map<string,Promise<{order:OneTimeOrder|null;error:Error|null}>>();
 let customerOrderChannelSequence=0;
 export const toCustomerOrder=(r:any):OneTimeOrder=>{
@@ -13,7 +13,7 @@ export const toCustomerOrder=(r:any):OneTimeOrder=>{
  customizations:{spiceLevel:pref.spiceLevel??'Regular',oilLevel:pref.oilLevel??'Standard',dietVariant:dietLabel(pref.dietType??'standard_gujarati')},
  addOns:(i.order_customizations??[]).map((c:any)=>({id:c.customization_id??c.id,name:c.customization_name_snapshot,price:Number(c.unit_price),quantity:c.quantity})),
  address:{...address,addressLine:address.addressLine??address.addressLine1},deliveryAddressSnapshot:address,deliveryZoneId:r.address_snapshot.zone_id??undefined,
- subtotal:Number(r.subtotal),addOnsTotal:Number(r.customization_total),deliveryFee:Number(r.delivery_fee),discount:Number(r.discount),total:Number(r.grand_total),paymentMethod:'CashOnDelivery',paymentStatus:r.payment_status.toUpperCase() as PaymentStatus,orderStatus:statuses[r.status],estimatedDeliveryTime:r.address_snapshot.slotLabel??'',createdAt:r.created_at,traceabilityMealId:'',notes:r.notes??'',
+ subtotal:Number(r.subtotal),addOnsTotal:Number(r.customization_total),deliveryFee:Number(r.delivery_fee),discount:Number(r.discount),promotionCode:r.promotion_code_snapshot??undefined,promotionName:r.promotion_name_snapshot??undefined,total:Number(r.grand_total),paymentMethod:'CashOnDelivery',paymentStatus:r.payment_status.toUpperCase() as PaymentStatus,orderStatus:statuses[r.status],estimatedDeliveryTime:r.address_snapshot.slotLabel??'',createdAt:r.created_at,traceabilityMealId:'',notes:r.notes??'',
  cancellationReason:r.cancellation_reason as CancellationReason|undefined,cancellationNote:r.cancellation_note??undefined,cancelledAt:r.cancelled_at??undefined};
 };
 export const orderService={
@@ -27,7 +27,7 @@ export const orderService={
    const requestKey=sessionStorage.getItem(storageKey)||crypto.randomUUID();sessionStorage.setItem(storageKey,requestKey);
    const {data,error}=await getSupabaseClient().rpc('place_order_secure',{
     p_order_date:p.orderDate,p_meal_type:p.mealType,p_delivery_slot_id:p.deliverySlotId,p_address_id:p.addressId,p_meal_id:p.mealId,p_quantity:p.quantity,
-    p_customizations:Object.entries(p.selectedAddons).filter(([,quantity])=>quantity>0).map(([customization_id,quantity])=>({customization_id,quantity})),p_notes:p.notes||null,p_idempotency_key:requestKey,p_preferences:p.preferences
+    p_customizations:Object.entries(p.selectedAddons).filter(([,quantity])=>quantity>0).map(([customization_id,quantity])=>({customization_id,quantity})),p_notes:p.notes||null,p_idempotency_key:requestKey,p_preferences:p.preferences,p_promotion_code:p.promotionCode||null
    });
    if(error)throw error;const order=toCustomerOrder(data);sessionStorage.removeItem(storageKey);return{order,error:null};
   }catch(error){return{order:null,error:error as Error};}})();

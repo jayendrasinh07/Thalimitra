@@ -9,10 +9,14 @@ import {
   FileText,
   AlertCircle,
   LogIn
+  ,BadgePercent
+  ,LoaderCircle
+  ,X
 } from 'lucide-react';
 import { DatabaseMeal, DatabaseMealCustomization } from '../../services/menuService';
 import { CustomerAddress, DeliverySlot, ServiceMealType } from '../../types';
 import { useApp } from '../../context/AppContext';
+import type { PromotionQuote } from '../../services/promotionService';
 
 interface Step6OrderReviewProps {
   meal: DatabaseMeal;
@@ -28,6 +32,13 @@ interface Step6OrderReviewProps {
   selectedAddress: CustomerAddress;
   notes: string;
   deliveryFee: number;
+  promotionQuote: PromotionQuote | null;
+  promotionCode: string;
+  promotionLoading: boolean;
+  promotionError?: string;
+  onPromotionCodeChange: (code: string) => void;
+  onApplyPromotion: (code: string) => Promise<void>;
+  onRemovePromotion: () => void;
   onNotesChange: (notes: string) => void;
   onConfirmOrder: () => void;
   isSubmitting: boolean;
@@ -48,6 +59,13 @@ export const Step6OrderReview: React.FC<Step6OrderReviewProps> = ({
   selectedAddress,
   notes,
   deliveryFee,
+  promotionQuote,
+  promotionCode,
+  promotionLoading,
+  promotionError,
+  onPromotionCodeChange,
+  onApplyPromotion,
+  onRemovePromotion,
   onNotesChange,
   onConfirmOrder,
   isSubmitting,
@@ -56,7 +74,7 @@ export const Step6OrderReview: React.FC<Step6OrderReviewProps> = ({
   const { currentUser, setIsAuthModalOpen } = useApp();
 
   // Calculate estimated itemized amounts for UI transparency
-  const mealsSubtotal = meal.basePrice * quantity;
+  let mealsSubtotal = meal.basePrice * quantity;
 
   let addonsTotal = 0;
   const addonItems: { name: string; qty: number; price: number; total: number }[] = [];
@@ -76,7 +94,13 @@ export const Step6OrderReview: React.FC<Step6OrderReviewProps> = ({
     }
   });
 
-  const estimatedGrandTotal = mealsSubtotal + addonsTotal + deliveryFee;
+  const quotedDeliveryFee = promotionQuote?.deliveryFee ?? deliveryFee;
+  if (promotionQuote) {
+    mealsSubtotal = promotionQuote.mealsSubtotal;
+    addonsTotal = promotionQuote.addonsTotal;
+  }
+  const discount = promotionQuote?.discount ?? 0;
+  const estimatedGrandTotal = Math.max(0, mealsSubtotal + addonsTotal + quotedDeliveryFee - discount);
 
   // Format date
   const dateObj = new Date(selectedDate + 'T00:00:00');
@@ -190,6 +214,14 @@ export const Step6OrderReview: React.FC<Step6OrderReviewProps> = ({
           Price Breakdown
         </h3>
 
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+          <div className="flex items-start gap-2"><BadgePercent className="mt-0.5 shrink-0 text-amber-700" size={19} /><div><p className="text-sm font-black text-stone-900">Offers & savings</p><p className="mt-0.5 text-xs text-stone-600">Only eligible offers are shown. Final savings are verified again when you place the order.</p></div></div>
+          {promotionQuote?.appliedOffer ? <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-white p-3"><div><p className="text-xs font-black text-emerald-800">{promotionQuote.appliedOffer.code} applied</p><p className="mt-0.5 text-xs text-stone-600">{promotionQuote.appliedOffer.name} · You save ₹{promotionQuote.appliedOffer.discount_amount}</p></div><button type="button" onClick={onRemovePromotion} className="flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-black text-red-700 hover:bg-red-50"><X size={15} />Remove</button></div>
+            : <div className="mt-3 flex gap-2"><input aria-label="Offer code" value={promotionCode} maxLength={30} onChange={event => onPromotionCodeChange(event.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void onApplyPromotion(promotionCode); } }} placeholder="Enter offer code" className="min-h-11 min-w-0 flex-1 rounded-xl border border-amber-200 bg-white px-3 font-mono text-sm font-bold uppercase outline-none focus:border-amber-500" /><button type="button" disabled={promotionLoading || !promotionCode.trim()} onClick={() => void onApplyPromotion(promotionCode)} className="min-h-11 rounded-xl bg-stone-900 px-4 text-sm font-black text-white disabled:opacity-40">{promotionLoading ? <LoaderCircle className="animate-spin" size={17} /> : 'Apply'}</button></div>}
+          {promotionError && <p role="alert" className="mt-2 text-xs font-bold text-red-700">{promotionError}</p>}
+          {!promotionQuote?.appliedOffer && (promotionQuote?.availableOffers.length ?? 0) > 0 && <div className="mt-3 space-y-2"><p className="text-[10px] font-black uppercase tracking-wider text-stone-500">Available for this order</p>{promotionQuote?.availableOffers.map(offer => <button key={offer.id} type="button" disabled={promotionLoading} onClick={() => void onApplyPromotion(offer.code)} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white px-3 text-left disabled:opacity-50"><span><span className="block text-xs font-black text-stone-900">{offer.code} · {offer.name}</span><span className="mt-0.5 block text-[11px] text-stone-500">{offer.description}</span></span><span className="shrink-0 text-xs font-black text-emerald-700">Save ₹{offer.discount_amount}</span></button>)}</div>}
+        </div>
+
         <div className="space-y-2.5 text-xs">
           {/* Base Meals */}
           <div className="flex items-center justify-between font-bold text-stone-800">
@@ -210,11 +242,13 @@ export const Step6OrderReview: React.FC<Step6OrderReviewProps> = ({
             <div className="flex items-center gap-1.5">
               <span>Cluster Doorstep Delivery</span>
               <span className="text-[10px] font-black text-[#0D6E44] bg-emerald-100 px-2 py-0.2 rounded-full">
-                {deliveryFee===0 ? "FREE" : ""}
+                {quotedDeliveryFee===0 ? "FREE" : ""}
               </span>
             </div>
-            <span className="font-mono font-black text-[#0D6E44]">₹{deliveryFee}</span>
+            <span className="font-mono font-black text-[#0D6E44]">₹{quotedDeliveryFee}</span>
           </div>
+
+          {discount > 0 && <div className="flex items-center justify-between font-bold text-emerald-700"><span>{promotionQuote?.appliedOffer?.code} savings</span><span className="font-mono font-black">−₹{discount}</span></div>}
 
           {/* Total */}
           <div className="flex items-center justify-between pt-3 border-t border-stone-200 text-sm sm:text-base font-black text-stone-900">
