@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useApp } from '../context/AppContext';
 import { 
   QrCode, 
@@ -35,6 +36,8 @@ export const OrderHistoryPage: React.FC = () => {
     reorderMeal,
     cancelOneTimeOrder,
     setIsOrderOnceModalOpen,
+    setIsAuthModalOpen,
+    currentUser,
     showToast
   } = useApp();
 
@@ -46,6 +49,8 @@ export const OrderHistoryPage: React.FC = () => {
   const [supportOrderId, setSupportOrderId] = useState<string | null>(null);
   const [supportMessage, setSupportMessage] = useState('');
   const [supportBusy, setSupportBusy] = useState(false);
+  const isNative = Capacitor.isNativePlatform();
+  const startOrder = () => isNative ? setActiveTab('todays_menu') : setIsOrderOnceModalOpen(true);
 
   const subscriptionHistory: {id:string;date:string;slot:string;items:string;status:string;rating:number|null;temperature:string;van:string}[] = [];
 
@@ -71,11 +76,19 @@ export const OrderHistoryPage: React.FC = () => {
     }
   };
 
+  if (isNative && !currentUser) return <div className="mx-auto max-w-2xl px-5 py-10 text-center">
+    <ShoppingBag className="mx-auto h-11 w-11 text-[#0D6E44]" />
+    <h1 className="mt-4 text-2xl font-black text-stone-900">Your orders, all in one place</h1>
+    <p className="mt-2 text-sm text-stone-600">Sign in to see your order status and past meals.</p>
+    <button type="button" onClick={() => setIsAuthModalOpen(true)} className="mt-6 min-h-12 w-full rounded-2xl bg-[#0D6E44] font-bold text-white">Sign in</button>
+    <button type="button" onClick={() => setActiveTab('todays_menu')} className="mt-3 min-h-11 w-full font-bold text-[#0D6E44]">Browse menu</button>
+  </div>;
+
   return (
-    <div className="py-10 bg-[#FAF8F5] min-h-[85vh]">
+    <div className={`${isNative ? 'py-4' : 'py-10'} bg-[#FAF8F5] min-h-[85vh]`}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Navigation & Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {!isNative && <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <button
             onClick={() => setActiveTab('customer_dashboard')}
             className="text-xs font-bold text-stone-600 hover:text-stone-900 flex items-center gap-1.5 cursor-pointer"
@@ -86,7 +99,7 @@ export const OrderHistoryPage: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsOrderOnceModalOpen(true)}
+              onClick={startOrder}
               className="px-4 py-2 rounded-xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -96,24 +109,24 @@ export const OrderHistoryPage: React.FC = () => {
               Your account orders
             </span>
           </div>
-        </div>
+        </div>}
 
         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-stone-200 shadow-md space-y-8">
           <div className="border-b border-stone-100 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <span className="text-xs font-extrabold uppercase tracking-widest text-[#0D6E44] bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+              {!isNative && <span className="text-xs font-extrabold uppercase tracking-widest text-[#0D6E44] bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
                 Receipts & Traceability Logs
-              </span>
+              </span>}
               <h1 className="text-2xl sm:text-3xl font-black text-stone-900 mt-2">
-                Order & Meal History
+                {isNative ? 'My orders' : 'Order & Meal History'}
               </h1>
               <p className="text-xs sm:text-sm text-stone-600 mt-1">
-                Access your one-time meal orders, daily subscription dispatches, and QR quality audits.
+                {isNative ? 'Track your meals and get help with an order.' : 'Access your one-time meal orders, daily subscription dispatches, and QR quality audits.'}
               </p>
             </div>
 
             {/* Filter Pills */}
-            <div className="flex items-center gap-2 bg-stone-100 p-1.5 rounded-2xl shrink-0">
+            {!isNative && <div className="flex items-center gap-2 bg-stone-100 p-1.5 rounded-2xl shrink-0">
               {[
                 { id: 'all', label: 'All' },
                 { id: 'one_time', label: `Single Orders (${oneTimeOrders.length})` },
@@ -131,7 +144,7 @@ export const OrderHistoryPage: React.FC = () => {
                   {tab.label}
                 </button>
               ))}
-            </div>
+            </div>}
           </div>
 
           {/* ================= ONE-TIME ORDERS SECTION ================= */}
@@ -150,7 +163,7 @@ export const OrderHistoryPage: React.FC = () => {
                   <Utensils className="w-8 h-8 text-stone-400 mx-auto" />
                   <p className="text-xs text-stone-600 font-medium">No one-time meal orders yet.</p>
                   <button
-                    onClick={() => setIsOrderOnceModalOpen(true)}
+                    onClick={startOrder}
                     className="px-4 py-2 rounded-xl bg-[#0D6E44] text-white text-xs font-bold"
                   >
                     Place Your First Single Order
@@ -244,7 +257,7 @@ export const OrderHistoryPage: React.FC = () => {
           )}
 
           {/* ================= SUBSCRIPTION DELIVERIES SECTION ================= */}
-          {(filterType === 'all' || filterType === 'subscription') && (
+          {!isNative && (filterType === 'all' || filterType === 'subscription') && (
             <div className="space-y-4 pt-4 border-t border-stone-100">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-black text-stone-900 flex items-center gap-2">

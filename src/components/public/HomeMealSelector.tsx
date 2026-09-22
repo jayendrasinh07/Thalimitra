@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { AlertCircle, ArrowRight, CalendarDays, CheckCircle2, Clock3, Coffee, Leaf, Loader2, Moon, RefreshCw, Sun, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { IMAGES } from '../../data/images';
@@ -23,6 +24,7 @@ const getInitialSelection = () => {
 };
 
 export const HomeMealSelector = () => {
+  const isNative = Capacitor.isNativePlatform();
   const { setActiveTab, setIsLocationModalOpen } = useApp();
   const dates = useMemo(() => getOrderableDates(), []);
   const initial = useMemo(getInitialSelection, []);
@@ -105,23 +107,23 @@ export const HomeMealSelector = () => {
   };
 
   return (
-    <section id="choose-meal" className="border-t border-stone-200/80 bg-[#FAF8F5] pb-12 pt-6 sm:py-12 lg:py-14">
+    <section id="choose-meal" className={`border-t border-stone-200/80 bg-[#FAF8F5] ${isNative ? 'pb-8 pt-4' : 'pb-12 pt-6 sm:py-12 lg:py-14'}`}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
+        <div className={`${isNative ? 'mb-4' : 'mb-5 sm:mb-7'} flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between`}>
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-[#0D6E44]">
+            {!isNative && <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-[#0D6E44]">
               <UtensilsCrossed className="h-3.5 w-3.5" /> Choose your meal
-            </span>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-stone-900 sm:text-4xl">
+            </span>}
+            <h2 className={`${isNative ? 'text-2xl' : 'mt-3 text-3xl sm:text-4xl'} font-black tracking-tight text-stone-900`}>
               {!loadingMenus && !menuError && !hasAnyPublishedMeal ? 'Fresh meals are coming to Gandhinagar.' : selectionHeading}
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-stone-600 sm:text-base">
+            {!isNative && <p className="mt-2 text-sm leading-relaxed text-stone-600 sm:text-base">
               {!loadingMenus && !menuError && !hasAnyPublishedMeal
                 ? 'The first Kitchen-published menu, exact prices and delivery times will appear here when ordering opens.'
                 : <><span className="sm:hidden">Date aur Breakfast/Lunch/Dinner choose karke exact menu aur price dekhiye.</span><span className="hidden sm:inline">Choose a date and service to see the Kitchen-published menu, exact price and delivery time.</span></>}
-            </p>
+            </p>}
           </div>
-          {hasAnyPublishedMeal && <button id="preview-view-full-menu-btn" type="button" onClick={openFullMenu} className="group inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-black text-[#0D6E44] hover:underline sm:self-auto">
+          {!isNative && hasAnyPublishedMeal && <button id="preview-view-full-menu-btn" type="button" onClick={openFullMenu} className="group inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-black text-[#0D6E44] hover:underline sm:self-auto">
             More dates <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </button>}
         </div>

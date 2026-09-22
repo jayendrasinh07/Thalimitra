@@ -18,6 +18,8 @@ import { DeveloperLocationDiagnostics } from './components/common/DeveloperLocat
 // Pages
 import { Home } from './pages/Home';
 import { MobileBottomBar } from './components/common/MobileBottomBar';
+import { NativeNavigation } from './components/native/NativeNavigation';
+import { NativeAccountPage } from './pages/NativeAccountPage';
 
 const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then((module) => ({ default: module.HowItWorksPage })));
 const MealPlansPage = React.lazy(() => import('./pages/MealPlansPage').then((module) => ({ default: module.MealPlansPage })));
@@ -65,13 +67,14 @@ const AndroidBackHandler: React.FC = () => {
     if (!Capacitor.isNativePlatform()) return;
     let disposed = false;
     let remove: (() => Promise<void>) | undefined;
-    void CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+    void CapacitorApp.addListener('backButton', () => {
       if (isLocationModalOpen) return setIsLocationModalOpen(false);
       if (isAuthModalOpen) return setIsAuthModalOpen(false);
       if (isOrderOnceModalOpen) return setIsOrderOnceModalOpen(false);
       if (isSubscribeModalOpen) return setIsSubscribeModalOpen(false);
       if (isLegalModalOpen) return setIsLegalModalOpen(false);
-      if (canGoBack) return window.history.back();
+      if (activeTab === 'order_once') return window.dispatchEvent(new Event('thalimitra:native-back'));
+      if (activeTab === 'contact' || activeTab === 'coverage') return setActiveTab('customer_dashboard');
       if (activeTab !== 'home') return setActiveTab('home');
       void CapacitorApp.exitApp();
     }).then(listener => {
@@ -108,6 +111,7 @@ const AndroidRecoveryLinkHandler: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
+  const isNative = Capacitor.isNativePlatform();
   const {
     activeTab,
     isOrderOnceModalOpen,
@@ -162,7 +166,7 @@ const MainContent: React.FC = () => {
       case 'contact':
         return <ContactPage />;
       case 'customer_dashboard':
-        return <CustomerDashboard />;
+        return isNative ? <NativeAccountPage /> : <CustomerDashboard />;
       case 'meal_preferences':
         return <MealPreferencesPage />;
       case 'order_history':
@@ -174,13 +178,11 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-stone-900 font-sans selection:bg-emerald-200 selection:text-emerald-950">
-      <Navbar />
-      <main className="flex-1 w-full pb-16 sm:pb-0">
+      {isNative ? <NativeNavigation /> : <Navbar />}
+      <main className={isNative ? 'flex-1 w-full pb-24' : 'flex-1 w-full pb-16 sm:pb-0'}>
         <React.Suspense fallback={<PageLoader />}>{renderActivePage()}</React.Suspense>
       </main>
-      <Footer />
-      <MobileBottomBar />
-      <RoleSwitcher />
+      {!isNative && <><Footer /><MobileBottomBar /><RoleSwitcher /></>}
       <ToastContainer />
 
       <React.Suspense fallback={null}>

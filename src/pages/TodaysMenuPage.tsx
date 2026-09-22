@@ -1,9 +1,11 @@
 import React from 'react';
+import { Capacitor } from '@capacitor/core';
 import { TodaysMenuSection } from '../components/public/TodaysMenuSection';
 import { HealthQualitySection } from '../components/public/HealthQualitySection';
 import { Sparkles, Utensils, Leaf, CheckCircle2 } from 'lucide-react';
 
 export const TodaysMenuPage: React.FC = () => {
+  if (Capacitor.isNativePlatform()) return <TodaysMenuSection />;
   return (
     <div className="py-12 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">

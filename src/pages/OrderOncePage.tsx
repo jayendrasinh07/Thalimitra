@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useApp } from '../context/AppContext';
 import { 
   ArrowRight, 
@@ -308,6 +309,17 @@ export const OrderOncePage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const onBack = () => {
+      if (confirmedOrder) setActiveTab('order_history');
+      else if (currentStep > 1) handlePrevStep();
+      else setActiveTab('todays_menu');
+    };
+    window.addEventListener('thalimitra:native-back', onBack);
+    return () => window.removeEventListener('thalimitra:native-back', onBack);
+  }, [confirmedOrder, currentStep, setActiveTab]);
+
   const handleStepClick = (stepId: number) => {
     if (stepId <= maxCompletedStep) {
       setCurrentStep(stepId);
@@ -458,11 +470,11 @@ export const OrderOncePage: React.FC = () => {
   }
 
   return (
-    <div className="py-6 sm:py-10 bg-[#FAF8F5] min-h-[90vh]">
+    <div className={`${Capacitor.isNativePlatform() ? 'py-4' : 'py-6 sm:py-10'} bg-[#FAF8F5] min-h-[90vh]`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* Page Top Branding Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200/80 pb-4">
+        {!Capacitor.isNativePlatform() && <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200/80 pb-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-black uppercase tracking-wider text-[#0D6E44] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -481,7 +493,7 @@ export const OrderOncePage: React.FC = () => {
             <ShieldCheck className="w-4 h-4 text-[#0D6E44]" />
             <span>Kitchen-published menu • Price verified at checkout</span>
           </div>
-        </div>
+        </div>}
 
         {/* Multi-Step Visual Progress Indicator */}
         <StepProgressIndicator
