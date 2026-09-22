@@ -148,7 +148,7 @@ export const OrderOncePage: React.FC = () => {
         if(intent){
           const requestedMeal=availableMeals.find(meal=>meal.id===intent.mealId);
           if(requestedMeal){setSelectedMeal(requestedMeal);setCurrentStep(3);setMaxCompletedStep(3);}
-          else{setCurrentStep(2);setSubmissionError('That meal is no longer available. Choose another published meal.');}
+          else{setCurrentStep(2);setSubmissionError(null);}
           landingIntent.current=null;
         }
       }})
@@ -637,7 +637,7 @@ export const OrderOncePage: React.FC = () => {
                 <button
                   type="button"
                   id="order-step-continue-btn"
-                  disabled={(currentStep === 1 && !availability.isAvailable) || (currentStep === 4 && !!currentUser && savedAddresses.some(a=>a.id===selectedAddress.id) && !quote && !quoteError)}
+                  disabled={(currentStep === 1 && !availability.isAvailable) || (currentStep === 2 && (isLoadingMenu || dbMeals.length === 0 || !selectedMeal.id)) || (currentStep === 4 && !!currentUser && savedAddresses.some(a=>a.id===selectedAddress.id) && !quote && !quoteError)}
                   onClick={handleNextStep}
                   className="px-7 py-3.5 rounded-2xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-950/15 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
