@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Coffee,
   Leaf,
-  Loader2,
   Moon,
   RefreshCw,
   Sun,
@@ -18,6 +17,7 @@ import { addCalendarDays, istDate } from '../../services/availabilityEngine';
 import { DatabaseDayMenu, dietLabel, menuService } from '../../services/menuService';
 import { ServiceMealType } from '../../types';
 import { SmartImage } from '../common/SmartImage';
+import { MealCardsSkeleton } from '../common/CustomerLoadingSkeleton';
 
 const dateLabel = (date: string, long = false) =>
   new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', {
@@ -136,10 +136,7 @@ export const TodaysMenuSection = () => {
         </div>
 
         {isLoading ? (
-          <div className="min-h-64 rounded-3xl border border-stone-200 bg-[#FAF8F5] flex flex-col items-center justify-center text-stone-600">
-            <Loader2 className="w-7 h-7 animate-spin text-[#0D6E44]" />
-            <p className="mt-3 text-sm font-bold">Loading the kitchen's published menu…</p>
-          </div>
+          <MealCardsSkeleton count={3} />
         ) : error ? (
           <div className="min-h-64 rounded-3xl border border-red-200 bg-red-50 flex flex-col items-center justify-center text-center px-6">
             <AlertCircle className="w-8 h-8 text-red-600" />

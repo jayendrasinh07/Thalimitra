@@ -20,6 +20,7 @@ import { Home } from './pages/Home';
 import { MobileBottomBar } from './components/common/MobileBottomBar';
 import { NativeNavigation } from './components/native/NativeNavigation';
 import { NativeAccountPage } from './pages/NativeAccountPage';
+import { CustomerPageSkeleton } from './components/common/CustomerLoadingSkeleton';
 
 if (Capacitor.isNativePlatform()) document.documentElement.classList.add('native-app');
 
@@ -49,11 +50,7 @@ const LocationSelectorModal = React.lazy(() => import('./components/modals/Locat
 const LegalModal = React.lazy(() => import('./components/modals/LegalModal').then((module) => ({ default: module.LegalModal })));
 const AuthModal = React.lazy(() => import('./components/modals/AuthModal').then((module) => ({ default: module.AuthModal })));
 
-const PageLoader = () => (
-  <div className="min-h-[50vh] grid place-items-center text-sm font-semibold text-stone-500" role="status">
-    Loading…
-  </div>
-);
+const PageLoader = () => <CustomerPageSkeleton />;
 
 const AndroidBackHandler: React.FC = () => {
   const {
