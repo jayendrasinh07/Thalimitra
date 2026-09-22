@@ -7,12 +7,18 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build --configLoader runner",
     "build:ops": "vite build --config vite.ops.config.ts --configLoader runner",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "node tests/client.cjs && node tests/auth-recovery-client.cjs && node tests/customer-realtime-client.cjs && node tests/kitchen-client.cjs && node tests/kitchen-menu-client.cjs && node tests/kitchen-catalog-client.cjs && node tests/kitchen-shift-client.cjs && node tests/kitchen-management-client.cjs && node tests/promotion-client.cjs && node tests/delivery-area-client.cjs && node tests/delivery-area-search-client.cjs && node tests/waitlist-client.cjs && node tests/kitchen-analytics-client.cjs && node tests/kitchen-alert-client.cjs && node tests/support-client.cjs"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/geolocation": "8.2.2",
     "@google/genai": "^2.4.0",
     "@supabase/supabase-js": "2.112.4",
     "@tailwindcss/vite": "^4.1.14",
@@ -32,6 +38,7 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.2",
     "@types/express": "^4.17.21",
     "@types/google.maps": "^3.66.0",
     "@types/leaflet": "1.9.22",

@@ -11,12 +11,22 @@
     font-family: var(--font-sans);
     color: #1a202c;
     background-color: #fbf9f5;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     letter-spacing: -0.02em;
   }
+}
+
+header.sticky {
+  top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 }
 
 @layer components {
