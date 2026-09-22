@@ -159,7 +159,7 @@ export const TodaysMenuSection = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div key={`${selectedDate}-${selectedSlot}`} className="content-enter grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {meals.map(meal => (
               <article key={meal.id} className="overflow-hidden rounded-3xl bg-[#FAF8F5] border border-stone-200 shadow-sm flex flex-col">
                 <div className="relative h-52 bg-stone-100 overflow-hidden">

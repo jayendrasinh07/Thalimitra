@@ -62,6 +62,33 @@ html.native-app::before {
   .skeleton-shimmer::after { animation: none; }
 }
 
+.native-modal-safe {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #0D6E44;
+}
+
+.content-enter {
+  animation: content-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pressable {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 180ms;
+}
+
+.pressable:active:not(:disabled) { transform: scale(0.98); }
+
+@keyframes content-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content-enter { animation: none; }
+  .pressable { transition-duration: 0ms; }
+}
+
 @layer components {
   .control {
     @apply mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-900 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100;

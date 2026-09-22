@@ -113,7 +113,7 @@ const VectorMapCanvas: React.FC<OpenStreetMapCanvasProps & { onFailure: () => vo
         </div>
       )}
 
-      <div className="absolute left-3 top-1/2 z-[4] flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_10px_30px_rgba(28,40,34,0.18)] backdrop-blur-xl">
+      <div className="absolute right-3 top-20 z-[4] flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_10px_30px_rgba(28,40,34,0.18)] backdrop-blur-xl">
         <button
           type="button"
           aria-label="Zoom in"
@@ -233,7 +233,7 @@ const RasterMapFallback: React.FC<OpenStreetMapCanvasProps> = ({ center, onMoveS
         />
       ))}
 
-      <div className="absolute left-3 top-1/2 z-[4] flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_10px_30px_rgba(28,40,34,0.18)] backdrop-blur-xl">
+      <div className="absolute right-3 top-20 z-[4] flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_10px_30px_rgba(28,40,34,0.18)] backdrop-blur-xl">
         <button type="button" aria-label="Zoom in" onPointerDown={event => event.stopPropagation()} onClick={() => changeZoom(Math.min(18, zoom + 1))} className="grid h-11 w-11 place-items-center text-stone-700 hover:bg-emerald-50 hover:text-[#0D6E44]"><Plus className="h-4.5 w-4.5" strokeWidth={2.5} /></button>
         <div className="mx-2 h-px bg-stone-200/80" />
         <button type="button" aria-label="Zoom out" onPointerDown={event => event.stopPropagation()} onClick={() => changeZoom(Math.max(11, zoom - 1))} className="grid h-11 w-11 place-items-center text-stone-700 hover:bg-emerald-50 hover:text-[#0D6E44]"><Minus className="h-4.5 w-4.5" strokeWidth={2.5} /></button>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { AlertCircle, ArrowRight, CalendarDays, CheckCircle2, Clock3, Coffee, Leaf, Loader2, Moon, RefreshCw, Sun, UtensilsCrossed } from 'lucide-react';
+import { AlertCircle, ArrowRight, CalendarDays, CheckCircle2, Clock3, Coffee, Leaf, Moon, RefreshCw, Sun, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { IMAGES } from '../../data/images';
 import { checkMealAvailability, getOrderableDates } from '../../services/availabilityEngine';
@@ -32,7 +32,7 @@ export const HomeMealSelector = () => {
   const [selectedDate, setSelectedDate] = useState(initial.date);
   const [selectedSlot, setSelectedSlot] = useState<ServiceSlot>(initial.slot);
   const [menus, setMenus] = useState<Record<string, DatabaseDayMenu | null>>({});
-  const [slots, setSlots] = useState<DeliverySlot[]>([]);
+  const [slotsByService, setSlotsByService] = useState<Partial<Record<ServiceSlot, DeliverySlot[]>>>({});
   const [loadingMenus, setLoadingMenus] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(true);
   const [menuError, setMenuError] = useState(false);
@@ -73,14 +73,18 @@ export const HomeMealSelector = () => {
 
   useEffect(() => {
     let active = true;
-    setLoadingSlots(true); setSlotError(false); setSlots([]);
-    menuService.getDeliverySlots(selectedSlot, selectedDate)
-      .then(result => { if (active) setSlots(result); })
+    setLoadingSlots(true); setSlotError(false); setSlotsByService({});
+    Promise.all(services.map(slot => menuService.getDeliverySlots(slot, selectedDate)))
+      .then(results => {
+        if (!active) return;
+        setSlotsByService(Object.fromEntries(services.map((slot, index) => [slot, results[index]])) as Record<ServiceSlot, DeliverySlot[]>);
+      })
       .catch(() => { if (active) setSlotError(true); })
       .finally(() => { if (active) setLoadingSlots(false); });
     return () => { active = false; };
-  }, [selectedDate, selectedSlot, reloadKey]);
+  }, [selectedDate, reloadKey]);
 
+  const slots = slotsByService[selectedSlot] ?? [];
   const meals = (menus[selectedDate]?.meals ?? []).filter(meal => meal.mealType === selectedSlot || (selectedSlot !== 'breakfast' && meal.mealType === 'both'));
   const availability = checkMealAvailability({ date: selectedDate, mealSlot: selectedSlot, currentTime: clock });
   const availableSlots = slots.filter(slot => slot.maxCapacity > slot.bookedCount);
@@ -166,7 +170,7 @@ export const HomeMealSelector = () => {
                   const Icon = slot === 'breakfast' ? Coffee : slot === 'lunch' ? Sun : Moon;
                   return (
                     <button key={slot} id={`home-menu-slot-${slot}`} type="button" onClick={() => { selectionTouched.current = true; setSelectedSlot(slot); }} aria-pressed={selected}
-                      className={`rounded-xl px-3 py-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-600 hover:text-stone-900'}`}>
+                      className={`pressable rounded-xl px-3 py-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-600 hover:text-stone-900'}`}>
                       <span className="flex items-center gap-2 text-sm font-black capitalize"><Icon className={`h-4 w-4 ${slot === 'dinner' ? 'text-indigo-500' : 'text-amber-500'}`} />{slot}</span>
                       <span className="mt-0.5 block pl-6 text-[10px] font-semibold text-stone-500">{slot === 'breakfast' ? '7:30–9:00 AM' : slot === 'lunch' ? '12:00–1:30 PM' : '7:30–9:00 PM'}</span>
                     </button>
@@ -187,7 +191,7 @@ export const HomeMealSelector = () => {
 
             {loadingMenus ? <MealCardsSkeleton count={2} />
               : meals.length === 0 ? <StateCard icon={<CalendarDays className="h-9 w-9 text-stone-400" />} title={`${selectedSlot[0].toUpperCase() + selectedSlot.slice(1)} menu is being prepared`} detail="Nothing appears until the Kitchen publishes this service. Select another day or check again later." />
-              : <div className="grid gap-4 lg:grid-cols-2">{meals.map(meal => <div key={meal.id}><MealCard meal={meal} canOrder={canOrder} loadingSlots={loadingSlots} availabilityMessage={!availability.isAvailable ? availability.message : slotError ? 'Delivery availability could not be checked.' : !loadingSlots && availableSlots.length === 0 ? 'This service is currently full.' : ''} onStart={() => startOrder(meal)} /></div>)}</div>}
+              : <div key={`${selectedDate}-${selectedSlot}`} className="content-enter grid gap-4 lg:grid-cols-2">{meals.map(meal => <div key={meal.id}><MealCard meal={meal} canOrder={canOrder} loadingSlots={loadingSlots} availabilityMessage={!availability.isAvailable ? availability.message : loadingSlots ? 'Checking delivery availability…' : slotError ? 'Delivery availability could not be checked.' : availableSlots.length === 0 ? 'This service is currently full.' : ''} onStart={() => startOrder(meal)} /></div>)}</div>}
           </div>
         </div>}
       </div>
@@ -207,7 +211,7 @@ const MealCard = ({ meal, canOrder, loadingSlots, availabilityMessage, onStart }
         <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#0D6E44]"><Leaf className="h-3.5 w-3.5 shrink-0" />{dietLabel(meal.dietType)}</p><h4 className="mt-1.5 text-xl font-black leading-tight text-stone-900">{meal.name}</h4></div><div className="shrink-0 text-right"><span className="block text-2xl font-black leading-none text-stone-900">₹{meal.basePrice}</span><span className="text-[10px] font-semibold text-stone-500">per meal</span></div></div>
         <p className="mt-3 line-clamp-3 flex-1 text-xs leading-relaxed text-stone-600">{meal.description || 'Prepared for the selected Kitchen service.'}</p>
         {availabilityMessage && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-900">{availabilityMessage}</p>}
-        <button type="button" onClick={onStart} disabled={!canOrder} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0D6E44] px-4 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-[#08482C] disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 disabled:shadow-none">{loadingSlots ? <Loader2 className="h-4 w-4 animate-spin" /> : <UtensilsCrossed className="h-4 w-4" />}Customize &amp; Continue <ArrowRight className="h-4 w-4" /></button>
+        <button type="button" onClick={onStart} disabled={!canOrder} aria-busy={loadingSlots} className="pressable mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0D6E44] px-4 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-[#08482C] disabled:cursor-not-allowed disabled:bg-[#0D6E44] disabled:text-white disabled:opacity-60 disabled:shadow-none"><UtensilsCrossed className="h-4 w-4" />Customize &amp; Continue <ArrowRight className="h-4 w-4" /></button>
       </div>
     </div>
   </article>

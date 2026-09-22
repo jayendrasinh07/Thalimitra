@@ -44,7 +44,7 @@ export const NativeNavigation = () => {
       <div className="mx-auto grid max-w-2xl grid-cols-4">
         {tabs.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => navigate(id)}
           aria-current={activeTab === id ? 'page' : undefined}
-          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-bold ${activeTab === id ? 'bg-emerald-50 text-[#0D6E44]' : 'text-stone-500'}`}>
+          className={`pressable flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-bold transition-colors duration-200 ${activeTab === id ? 'bg-emerald-50 text-[#0D6E44]' : 'text-stone-500'}`}>
           <Icon className="h-5 w-5" strokeWidth={activeTab === id ? 2.5 : 2} />{label}
         </button>)}
       </div>
