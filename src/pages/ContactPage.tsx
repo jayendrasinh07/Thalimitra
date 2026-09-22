@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useApp } from '../context/AppContext';
 import { BRAND_CONFIG } from '../data/config';
 import { MapPin, Mail, Send, CheckCircle2 } from 'lucide-react';
@@ -11,6 +12,7 @@ export const ContactPage: React.FC = () => {
   const [submittedTicket, setSubmittedTicket] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [requests, setRequests] = useState<SupportRequest[]>([]);
+  const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
     let active = true;
@@ -42,9 +44,9 @@ export const ContactPage: React.FC = () => {
   };
 
   return (
-    <div className="py-12 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-        <div className="text-center max-w-3xl mx-auto">
+    <div className={`${isNative ? 'py-5' : 'py-12'} bg-white`}>
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isNative ? 'space-y-5' : 'space-y-12'}`}>
+        {!isNative && <div className="text-center max-w-3xl mx-auto">
           <span className="text-xs font-extrabold uppercase tracking-widest text-[#0D6E44] bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-200">
             Gandhinagar Kitchen & Support Hub
           </span>
@@ -54,7 +56,7 @@ export const ContactPage: React.FC = () => {
           <p className="text-stone-600 text-base mt-3 leading-relaxed">
             Have questions about custom plans, corporate orders, or delivery timing in your sector? We’re always here to help.
           </p>
-        </div>
+        </div>}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Left Info Column */}
