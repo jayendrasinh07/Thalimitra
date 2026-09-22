@@ -21,6 +21,8 @@ import { MobileBottomBar } from './components/common/MobileBottomBar';
 import { NativeNavigation } from './components/native/NativeNavigation';
 import { NativeAccountPage } from './pages/NativeAccountPage';
 
+if (Capacitor.isNativePlatform()) document.documentElement.classList.add('native-app');
+
 const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then((module) => ({ default: module.HowItWorksPage })));
 const MealPlansPage = React.lazy(() => import('./pages/MealPlansPage').then((module) => ({ default: module.MealPlansPage })));
 const TodaysMenuPage = React.lazy(() => import('./pages/TodaysMenuPage').then((module) => ({ default: module.TodaysMenuPage })));
