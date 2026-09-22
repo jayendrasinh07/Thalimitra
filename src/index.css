@@ -39,6 +39,29 @@ html.native-app::before {
   z-index: 60;
 }
 
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #e7e5e4;
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 72%), transparent);
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after { animation: none; }
+}
+
 @layer components {
   .control {
     @apply mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-900 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100;

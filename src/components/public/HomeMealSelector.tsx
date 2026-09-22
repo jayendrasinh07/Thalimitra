@@ -7,6 +7,7 @@ import { checkMealAvailability, getOrderableDates } from '../../services/availab
 import { DatabaseDayMenu, DatabaseMeal, dietLabel, formatSlotTime, menuService } from '../../services/menuService';
 import { DeliverySlot, ServiceMealType } from '../../types';
 import { SmartImage } from '../common/SmartImage';
+import { MealCardsSkeleton } from '../common/CustomerLoadingSkeleton';
 
 type ServiceSlot = ServiceMealType;
 const services: ServiceSlot[] = ['breakfast', 'lunch', 'dinner'];
@@ -184,7 +185,7 @@ export const HomeMealSelector = () => {
               </div>
             </div>
 
-            {loadingMenus ? <StateCard icon={<Loader2 className="h-8 w-8 animate-spin text-[#0D6E44]" />} title="Loading the Kitchen menu…" />
+            {loadingMenus ? <MealCardsSkeleton count={2} />
               : meals.length === 0 ? <StateCard icon={<CalendarDays className="h-9 w-9 text-stone-400" />} title={`${selectedSlot[0].toUpperCase() + selectedSlot.slice(1)} menu is being prepared`} detail="Nothing appears until the Kitchen publishes this service. Select another day or check again later." />
               : <div className="grid gap-4 lg:grid-cols-2">{meals.map(meal => <div key={meal.id}><MealCard meal={meal} canOrder={canOrder} loadingSlots={loadingSlots} availabilityMessage={!availability.isAvailable ? availability.message : slotError ? 'Delivery availability could not be checked.' : !loadingSlots && availableSlots.length === 0 ? 'This service is currently full.' : ''} onStart={() => startOrder(meal)} /></div>)}</div>}
           </div>
