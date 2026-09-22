@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.thalimitra.customer",
+      "sha256_cert_fingerprints": [
+        "9D:CF:F9:F3:5A:10:67:CE:B5:99:DB:57:F5:50:D8:35:67:1D:91:1E:05:4D:0D:E4:08:3C:5E:76:01:7C:66:A7"
+      ]
+    }
+  }
+]

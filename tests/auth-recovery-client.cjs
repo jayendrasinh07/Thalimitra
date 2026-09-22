@@ -7,7 +7,7 @@ const source = readFileSync('src/services/authService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')
   .replace(/export /g, '');
 
-function serviceFor(auth, href) {
+function serviceFor(auth, href, native = false) {
   const location = { href };
   const history = { replaced: null, replaceState(_state, _title, path) { this.replaced = path; } };
   const result = vm.runInNewContext(
@@ -20,6 +20,7 @@ function serviceFor(auth, href) {
       window: { location, history },
       isSupabaseConfigured: () => true,
       getSupabaseClient: () => ({ auth }),
+      Capacitor: { isNativePlatform: () => native },
     },
   );
   return { ...result, history };
@@ -64,5 +65,16 @@ function serviceFor(auth, href) {
   assert.equal(result.ready, false);
   assert.match(result.error.message, /invalid, expired, or already used/);
 
-  console.log('PASS: recovery session validation, code exchange, token restore, MFA elevation, and missing-session rejection');
+  let receivedTokens;
+  const mobile = serviceFor({ setSession: async tokens => { receivedTokens = tokens; return { error: null }; } }, 'https://localhost/', true);
+  assert.equal(await mobile.authService.consumeMobileRecoveryLink('https://thalimitra.com/reset-password#access_token=access&refresh_token=refresh&type=recovery'), true);
+  assert.deepEqual(JSON.parse(JSON.stringify(receivedTokens)), { access_token: 'access', refresh_token: 'refresh' });
+  assert.equal(mobile.history.replaced, '/reset-password');
+  assert.equal(await mobile.authService.consumeMobileRecoveryLink('https://ops.thalimitra.com/reset-password?code=invalid'), false);
+
+  const expiredMobile = serviceFor({ exchangeCodeForSession: async () => ({ error: new Error('expired') }) }, 'https://localhost/', true);
+  assert.equal(await expiredMobile.authService.consumeMobileRecoveryLink('https://thalimitra.com/reset-password?code=expired'), true);
+  assert.match(expiredMobile.history.replaced, /error_description=/);
+
+  console.log('PASS: web and Android recovery callbacks, MFA elevation, and invalid-link handling');
 })().catch(error => { console.error(error); process.exitCode = 1; });

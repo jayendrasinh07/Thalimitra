@@ -4,11 +4,14 @@
  */
 
 import React from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/common/Navbar';
 import { Footer } from './components/common/Footer';
 import { RoleSwitcher } from './components/common/RoleSwitcher';
 import { ToastContainer } from './components/common/ToastContainer';
+import { authService } from './services/authService';
 
 import { DeveloperLocationDiagnostics } from './components/common/DeveloperLocationDiagnostics';
 
@@ -47,6 +50,62 @@ const PageLoader = () => (
     Loading…
   </div>
 );
+
+const AndroidBackHandler: React.FC = () => {
+  const {
+    activeTab, setActiveTab,
+    isLocationModalOpen, setIsLocationModalOpen,
+    isAuthModalOpen, setIsAuthModalOpen,
+    isOrderOnceModalOpen, setIsOrderOnceModalOpen,
+    isSubscribeModalOpen, setIsSubscribeModalOpen,
+    isLegalModalOpen, setIsLegalModalOpen,
+  } = useApp();
+
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let disposed = false;
+    let remove: (() => Promise<void>) | undefined;
+    void CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (isLocationModalOpen) return setIsLocationModalOpen(false);
+      if (isAuthModalOpen) return setIsAuthModalOpen(false);
+      if (isOrderOnceModalOpen) return setIsOrderOnceModalOpen(false);
+      if (isSubscribeModalOpen) return setIsSubscribeModalOpen(false);
+      if (isLegalModalOpen) return setIsLegalModalOpen(false);
+      if (canGoBack) return window.history.back();
+      if (activeTab !== 'home') return setActiveTab('home');
+      void CapacitorApp.exitApp();
+    }).then(listener => {
+      if (disposed) void listener.remove();
+      else remove = () => listener.remove();
+    });
+    return () => { disposed = true; void remove?.(); };
+  }, [activeTab, isLocationModalOpen, isAuthModalOpen, isOrderOnceModalOpen, isSubscribeModalOpen, isLegalModalOpen]);
+  return null;
+};
+
+const AndroidRecoveryLinkHandler: React.FC = () => {
+  const { setActiveTab } = useApp();
+  const setActiveTabRef = React.useRef(setActiveTab);
+  setActiveTabRef.current = setActiveTab;
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let disposed = false;
+    let handledUrl = '';
+    let remove: (() => Promise<void>) | undefined;
+    const open = async (url: string) => {
+      if (url === handledUrl) return;
+      handledUrl = url;
+      if (await authService.consumeMobileRecoveryLink(url) && !disposed) setActiveTabRef.current('password_recovery');
+    };
+    void CapacitorApp.addListener('appUrlOpen', ({ url }) => { void open(url); }).then(listener => {
+      if (disposed) void listener.remove();
+      else remove = () => listener.remove();
+    });
+    void CapacitorApp.getLaunchUrl().then(result => { if (result?.url) void open(result.url); });
+    return () => { disposed = true; void remove?.(); };
+  }, []);
+  return null;
+};
 
 const MainContent: React.FC = () => {
   const {
@@ -148,6 +207,8 @@ const MainContent: React.FC = () => {
 export default function App() {
   return (
     <AppProvider>
+      <AndroidBackHandler />
+      <AndroidRecoveryLinkHandler />
       <MainContent />
     </AppProvider>
   );

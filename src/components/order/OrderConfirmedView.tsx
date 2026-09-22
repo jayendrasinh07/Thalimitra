@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { OneTimeOrder } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { Capacitor } from '@capacitor/core';
 
 interface OrderConfirmedViewProps {
   order: OneTimeOrder;
@@ -161,7 +162,7 @@ export const OrderConfirmedView: React.FC<OrderConfirmedViewProps> = ({
       </div>
 
       {/* CONTEXTUAL JUST-IN-TIME NOTIFICATION CARD */}
-      {!notificationCardDismissed && (
+      {!Capacitor.isNativePlatform() && !notificationCardDismissed && (
         <div className="p-5 sm:p-6 rounded-3xl bg-white border border-stone-200 shadow-md">
           {notificationPermission === 'granted' ? (
             <div className="flex items-center gap-3 text-emerald-800">

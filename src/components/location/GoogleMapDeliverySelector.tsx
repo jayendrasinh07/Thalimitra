@@ -39,6 +39,7 @@ import {
 import { OpenStreetMapCanvas } from './OpenStreetMapCanvas';
 import { checkCoordinateServiceability, type CoordinateServiceability } from '../../services/serviceabilityService';
 import { joinAreaWaitlist } from '../../services/publicDeliveryAreaService';
+import { permissionManager } from '../../services/permissionService';
 
 interface GoogleMapDeliverySelectorProps {
   onClose: () => void;
@@ -343,16 +344,17 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
     setGpsAccuracyWarning(null);
     setResolvedAddress(null); // Clear stale address immediately before GPS request
 
-    if (typeof window === 'undefined' || !navigator.geolocation) {
+    const location = await permissionManager.requestLocationPosition({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    if (reqId !== requestIdRef.current) return;
+    if (!location.success) {
       setIsGpsLocating(false);
       setLocationStatus('error');
-      setGpsPermissionError('Location detection is not supported by your browser.');
-      showToast('Geolocation Unsupported', 'Your browser does not support GPS location detection.', 'warning');
+      setGpsPermissionError(location.errorMessage || 'Please search your address or move the map pin.');
+      showToast('GPS Detection', location.errorMessage || 'Please search your address.', 'warning');
       return;
     }
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+    const pos = { coords: { latitude: location.latitude!, longitude: location.longitude!, accuracy: location.accuracy }, timestamp: Date.now() };
+    {
         if (reqId !== requestIdRef.current) return;
 
         const lat = pos.coords.latitude;
@@ -433,33 +435,7 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
             setCurrentStep('conflict_warning');
           }
         }
-      },
-      (error) => {
-        if (reqId !== requestIdRef.current) return;
-        setIsGpsLocating(false);
-        setLocationStatus('error');
-
-        let msg = "Couldn't detect your location. Please search your address.";
-        if (error.code === error.PERMISSION_DENIED) {
-          msg = 'Location permission is disabled.';
-          setGpsPermissionError('Location permission is disabled.');
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          msg = 'GPS signal unavailable. Please use the search bar or pan the map.';
-          setGpsPermissionError(msg);
-        } else if (error.code === error.TIMEOUT) {
-          msg = 'GPS location request timed out. Please try again or search.';
-          setGpsPermissionError(msg);
-        } else {
-          setGpsPermissionError(msg);
-        }
-        showToast('GPS Detection', msg, 'warning');
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0 // Do not allow stale cached locations
-      }
-    );
+    }
   };
 
   // ----------------------------------------------------
@@ -999,10 +975,10 @@ export const GoogleMapDeliverySelector: React.FC<GoogleMapDeliverySelectorProps>
 
                   <div className="text-xs text-stone-500 truncate mt-0.5">
                     {locationStatus === 'detecting'
-                      ? 'Requesting high-accuracy browser coordinates...'
+                      ? 'Getting your device location...'
                       : resolvedAddress?.city
                       ? `${resolvedAddress.area || ''}${resolvedAddress.area ? ', ' : ''}${resolvedAddress.city} ${resolvedAddress.pincode || ''}`
-                      : 'Doorstep location selected on Google Map'}
+                      : 'Doorstep location selected on map'}
                   </div>
                 </div>
               </div>

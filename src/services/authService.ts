@@ -1,6 +1,7 @@
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 import { CustomerSegmentType, UserRoleType } from '../types/database.types';
+import { Capacitor } from '@capacitor/core';
 
 export interface AuthProfile {
   id: string;
@@ -86,7 +87,9 @@ export const authService = {
     try {
       const client = getSupabaseClient();
       const { error } = await client.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: Capacitor.isNativePlatform()
+          ? 'https://thalimitra.com/reset-password'
+          : `${window.location.origin}/reset-password`
       });
       if (error) throw error;
       return { error: null };
@@ -100,6 +103,34 @@ export const authService = {
       }
       return { error: err };
     }
+  },
+
+  async consumeMobileRecoveryLink(link: string): Promise<boolean> {
+    if (!Capacitor.isNativePlatform()) return false;
+    let url: URL;
+    try { url = new URL(link); } catch { return false; }
+    if (url.protocol !== 'https:' || url.hostname !== 'thalimitra.com' || url.pathname !== '/reset-password') return false;
+
+    try {
+      const client = getSupabaseClient();
+      const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
+      const code = url.searchParams.get('code');
+      const accessToken = hash.get('access_token');
+      const refreshToken = hash.get('refresh_token');
+      if (code) {
+        const { error } = await client.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+      } else if (accessToken && refreshToken) {
+        const { error } = await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (error) throw error;
+      } else {
+        throw new Error('The link has no recovery session.');
+      }
+      window.history.replaceState(null, '', '/reset-password');
+    } catch {
+      window.history.replaceState(null, '', '/reset-password?error_description=This%20reset%20link%20is%20invalid%20or%20expired');
+    }
+    return true;
   },
 
   async preparePasswordRecovery(): Promise<{ ready: boolean; error: Error | null }> {

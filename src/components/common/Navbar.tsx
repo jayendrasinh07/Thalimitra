@@ -197,10 +197,10 @@ export const Navbar: React.FC = () => {
               id="mobile-location-header-btn"
               onClick={() => setIsLocationModalOpen(true)}
               className="px-2.5 py-1.5 rounded-full bg-stone-100/90 active:bg-emerald-50 text-stone-700 text-[11px] font-bold flex items-center gap-1 border border-stone-200 cursor-pointer max-w-[96px] sm:max-w-[130px] truncate shrink min-w-0"
-              aria-label="Delivery Location"
+              aria-label="Set or change delivery location"
             >
               <MapPin className="w-3 h-3 text-[#0D6E44] shrink-0" />
-              <span className="truncate">{locationLabel}</span>
+              <span className="truncate">{locationLabel === 'Set location' ? 'Area' : locationLabel}</span>
             </button>
 
             <button

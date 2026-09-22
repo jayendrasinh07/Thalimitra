@@ -9,6 +9,8 @@
  */
 
 import { LocationState, NotificationPermissionState } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
 export interface GeolocationResult {
   success: boolean;
@@ -35,6 +37,14 @@ class PermissionManager {
    * Check current Location permission status without prompting the user.
    */
   public async checkLocationPermission(): Promise<'granted' | 'prompt' | 'denied' | 'unsupported'> {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const state = (await Geolocation.checkPermissions()).location;
+        return state === 'prompt-with-rationale' ? 'prompt' : state;
+      } catch {
+        return 'prompt';
+      }
+    }
     if (typeof window === 'undefined' || !navigator.geolocation) {
       return 'unsupported';
     }
@@ -63,6 +73,19 @@ class PermissionManager {
       maximumAge: 0 // Do NOT allow stale cached location to be silently reused
     }
   ): Promise<GeolocationResult> {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const position = await Geolocation.getCurrentPosition(options);
+        return { success: true, latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy };
+      } catch (error: any) {
+        const detail = String(error?.message || '').toLowerCase();
+        const errorType = detail.includes('permission') || detail.includes('denied') ? 'permission-denied'
+          : detail.includes('timeout') ? 'timeout' : 'unavailable';
+        return { success: false, errorType, errorMessage: errorType === 'permission-denied'
+          ? 'Location permission is off. Enable it in Android settings or search your address manually.'
+          : 'Could not detect your location. Please search your address or move the map pin.' };
+      }
+    }
     if (typeof window === 'undefined' || !navigator.geolocation) {
       return {
         success: false,
@@ -128,6 +151,7 @@ class PermissionManager {
    * Check Notification permission status.
    */
   public checkNotificationPermission(): NotificationPermissionState {
+    if (Capacitor.isNativePlatform()) return 'unsupported';
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return 'unsupported';
     }
@@ -139,6 +163,7 @@ class PermissionManager {
    * Request Notification permission contextually (only post-order confirmation).
    */
   public async requestNotificationPermission(): Promise<NotificationPermissionState> {
+    if (Capacitor.isNativePlatform()) return 'unsupported';
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return 'unsupported';
     }
@@ -156,6 +181,7 @@ class PermissionManager {
    * Send a contextual native order update notification if permission granted.
    */
   public sendOrderNotification(title: string, options?: NotificationOptions): boolean {
+    if (Capacitor.isNativePlatform()) return false;
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return false;
     }
