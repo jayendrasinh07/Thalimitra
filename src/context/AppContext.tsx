@@ -53,6 +53,7 @@ import { authService, AuthProfile } from '../services/authService';
 import { addressService } from '../services/addressService';
 import { orderService } from '../services/orderService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
+import { rememberOrderOrigin } from '../services/orderNavigation';
 import { UserRoleType, CustomerSegmentType } from '../types/database.types';
 
 export type ActiveTab = 
@@ -257,6 +258,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const safeTab = !SUBSCRIPTIONS_ENABLED && (
       tab === 'meal_plans' || tab === 'my_subscription' || tab === 'subscription_management'
     ) ? 'order_once' : tab;
+    if (safeTab === 'order_once' && activeTab !== 'order_once') rememberOrderOrigin(activeTab);
     setActiveTabState(safeTab);
     if (safeTab === 'todays_menu' && activeTab === 'todays_menu') scrollToPublishedMenu();
   }, [activeTab]);

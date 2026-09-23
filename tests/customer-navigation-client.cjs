@@ -11,6 +11,7 @@ const order = read('src/pages/OrderOncePage.tsx');
 const navbar = read('src/components/common/Navbar.tsx');
 const footer = read('src/components/common/Footer.tsx');
 const nativeNavigation = read('src/components/native/NativeNavigation.tsx');
+const orderNavigation = read('src/services/orderNavigation.ts');
 const ops = read('src/OpsApp.tsx');
 const mfa = read('src/components/kitchen/KitchenMfaGate.tsx');
 
@@ -26,6 +27,15 @@ assert.doesNotMatch(auth, /meal subscriptions/);
 assert.match(app, /activeTab === 'order_once'.*thalimitra:native-back/s);
 assert.match(order, /addEventListener\('thalimitra:native-back'/);
 assert.match(order, /Back to \{ORDER_STEPS\[currentStep - 2\]/);
+assert.match(context, /rememberOrderOrigin\(activeTab\)/);
+assert.match(order, /const destination = getOrderOrigin\(\)/);
+assert.match(order, /else exitOrderFlow\(\)/);
+assert.match(order, /onClick=\{exitOrderFlow\}/);
+assert.doesNotMatch(order, /else setActiveTab\('todays_menu'\)/);
+for (const origin of ['home', 'todays_menu', 'order_history', 'customer_dashboard']) {
+  assert.match(orderNavigation, new RegExp(`'${origin}'`));
+}
+assert.match(orderNavigation, /return isOrderOrigin\(saved\) \? saved : 'home'/);
 for (const [id, tab] of [
   ['nav-home', 'home'], ['nav-menu', 'todays_menu'], ['nav-how', 'how_it_works'],
   ['nav-business', 'corporate'], ['nav-order-now-btn', 'todays_menu']

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useApp } from '../context/AppContext';
 import { 
@@ -42,6 +42,7 @@ import { addressService } from '../services/addressService';
 import { dietLabel } from '../services/menuService';
 import { promotionService, type PromotionQuote } from '../services/promotionService';
 import { IMAGES } from '../data/images';
+import { clearOrderOrigin, getOrderOrigin } from '../services/orderNavigation';
 
 type LandingOrderIntent = { date: string; slot: ServiceMealType; mealId: string };
 
@@ -309,16 +310,23 @@ export const OrderOncePage: React.FC = () => {
     }
   };
 
+  const exitOrderFlow = useCallback(() => {
+    const destination = getOrderOrigin();
+    clearOrderOrigin();
+    setActiveTab(destination);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [setActiveTab]);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const onBack = () => {
       if (confirmedOrder) setActiveTab('order_history');
       else if (currentStep > 1) handlePrevStep();
-      else setActiveTab('todays_menu');
+      else exitOrderFlow();
     };
     window.addEventListener('thalimitra:native-back', onBack);
     return () => window.removeEventListener('thalimitra:native-back', onBack);
-  }, [confirmedOrder, currentStep, setActiveTab]);
+  }, [confirmedOrder, currentStep, exitOrderFlow, setActiveTab]);
 
   const handleStepClick = (stepId: number) => {
     if (stepId <= maxCompletedStep) {
@@ -623,10 +631,7 @@ export const OrderOncePage: React.FC = () => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveTab('home');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
+                  onClick={exitOrderFlow}
                   className="px-5 py-3 rounded-2xl bg-white hover:bg-stone-100 text-stone-600 border border-stone-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   Cancel
