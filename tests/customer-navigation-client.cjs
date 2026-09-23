@@ -64,5 +64,9 @@ assert.doesNotMatch(homeMenu, /Menu ready/);
 assert.match(customization, /id="toggle-preparation-preferences"/);
 assert.match(customization, /aria-expanded=\{showPreparationPreferences\}/);
 assert.match(customization, /showPreparationPreferences && <div id="preparation-preference-options"/);
+assert.match(customization, /const preparationSummary =/);
+assert.match(customization, /spiceLevel === 'Less Spicy' \? 'Very mild \(less spicy\)' : 'Regular mild'/);
+assert.match(customization, /oilLevel === 'Less Oil \(Fit\)' \? 'Low-oil \(no ghee\)' : 'Homestyle ghee brush'/);
+assert.match(customization, /aria-live="polite">\{preparationSummary\}/);
 
 console.log('PASS: customer route hierarchy, disabled subscription paths, exact cutoffs, and Operations role/MFA isolation');

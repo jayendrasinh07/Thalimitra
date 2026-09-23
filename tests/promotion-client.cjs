@@ -3,6 +3,8 @@ const { stripTypeScriptTypes } = require('node:module');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
+const promotionIdFix = readFileSync('supabase/migrations/20260923162319_fix_promotion_campaign_ambiguous_id.sql', 'utf8');
+
 const source = readFileSync('src/services/promotionService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')
   .replace(/export /g, '');
@@ -42,5 +44,9 @@ const management = { campaigns: [campaign], meals: [], areas: [] };
 
   response = { data: null, error: { code: '23505', message: '' } };
   await assert.rejects(api.promotionService.getManagement(), /already exists/);
+  assert.doesNotMatch(promotionIdFix, /\)\s+id\s+LEFT JOIN/i);
+  assert.match(promotionIdFix, /AS candidate\(candidate_id\)/);
+  assert.match(promotionIdFix, /UPDATE private\.promotion_campaigns AS campaign/);
+  assert.match(promotionIdFix, /WHERE campaign\.id = p_id/);
   console.log('PASS: promotion quotes, numeric normalization and admin RPC contracts');
 })().catch(error => { console.error(error); process.exitCode = 1; });

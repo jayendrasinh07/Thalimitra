@@ -45,6 +45,11 @@ export const Step3Customization: React.FC<Step3CustomizationProps> = ({
   // Add-ons available for the selected meal.
   const displayAddons = customizationCatalog;
   const [showPreparationPreferences, setShowPreparationPreferences] = useState(false);
+  const preparationSummary = `${
+    spiceLevel === 'Less Spicy' ? 'Very mild (less spicy)' : 'Regular mild'
+  } · ${
+    oilLevel === 'Less Oil (Fit)' ? 'Low-oil (no ghee)' : 'Homestyle ghee brush'
+  } selected.`;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -117,7 +122,7 @@ export const Step3Customization: React.FC<Step3CustomizationProps> = ({
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-[#0D6E44]"><Sliders className="h-5 w-5" /></span>
             <div>
               <h3 className="text-sm font-black text-stone-900 sm:text-base">Need a preparation change?</h3>
-              <p className="mt-0.5 text-xs leading-relaxed text-stone-500">Regular mild and homestyle preparation is selected.</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-stone-500" aria-live="polite">{preparationSummary}</p>
             </div>
           </div>
           <span className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-[#0D6E44]">
