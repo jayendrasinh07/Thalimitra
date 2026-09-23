@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { AlertCircle, ArrowRight, CalendarDays, CheckCircle2, Clock3, Coffee, Leaf, Moon, RefreshCw, Sun, UtensilsCrossed } from 'lucide-react';
+import { AlertCircle, ArrowRight, CalendarDays, Clock3, Coffee, Leaf, Moon, RefreshCw, Sun, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { IMAGES } from '../../data/images';
 import { checkMealAvailability, getOrderableDates } from '../../services/availabilityEngine';
@@ -150,13 +150,11 @@ export const HomeMealSelector = () => {
               <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none xl:grid xl:grid-cols-7 xl:gap-2 xl:overflow-visible" aria-label="Meal date">
                 {dates.map((item, index) => {
                   const selected = item.dateStr === selectedDate;
-                  const published = Boolean(menus[item.dateStr]);
                   return (
                     <button key={item.dateStr} id={`home-menu-date-${item.dateStr}`} type="button" onClick={() => { selectionTouched.current = true; setSelectedDate(item.dateStr); }} aria-pressed={selected}
                       className={`min-w-[104px] shrink-0 rounded-2xl border px-3.5 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 xl:min-w-0 xl:px-3 ${selected ? 'border-[#0D6E44] bg-[#0D6E44] text-white shadow-md' : 'border-stone-200 bg-[#FAF8F5] text-stone-700 hover:border-emerald-300'}`}>
                       <span className="block text-[10px] font-black uppercase tracking-wide opacity-75">{index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : formatDate(item.dateStr).split(',')[0]}</span>
                       <span className="mt-0.5 block text-sm font-black">{formatDate(item.dateStr).replace(/^\w+,\s*/, '')}</span>
-                      {!loadingMenus && published && <span className={`mt-1.5 flex items-center gap-1 text-[10px] font-bold ${selected ? 'text-emerald-100' : 'text-emerald-700'}`}><CheckCircle2 className="h-3 w-3" />Menu ready</span>}
                     </button>
                   );
                 })}

@@ -14,6 +14,11 @@ const nativeNavigation = read('src/components/native/NativeNavigation.tsx');
 const orderNavigation = read('src/services/orderNavigation.ts');
 const ops = read('src/OpsApp.tsx');
 const mfa = read('src/components/kitchen/KitchenMfaGate.tsx');
+const stepOne = read('src/components/order/Step1DateMealSlot.tsx');
+const customization = read('src/components/order/Step3Customization.tsx');
+const publicMenu = read('src/components/public/TodaysMenuSection.tsx');
+const homeMenu = read('src/components/public/HomeMealSelector.tsx');
+const availabilityEngine = read('src/services/availabilityEngine.ts');
 
 assert.match(flags, /SUBSCRIPTIONS_ENABLED\s*=\s*false/);
 assert.doesNotMatch(app, /import\('\.\/components\/modals\/SubscribeModal'\)/);
@@ -52,5 +57,12 @@ assert.match(nativeNavigation, /activeTab === 'order_once'.*thalimitra:native-ba
 assert.match(ops, /role === 'kitchen' \|\| role === 'admin'/);
 assert.match(ops, /<KitchenMfaGate/);
 assert.match(mfa, /currentLevel === 'aal2'/);
+assert.doesNotMatch(stepOne, /07:30 AM|09:00 AM|01:30 PM|07:30 PM|09:00 PM/);
+assert.doesNotMatch(availabilityEngine, /07:30 AM|09:00 AM|01:30 PM|07:30 PM|09:00 PM|05:30 PM/);
+assert.doesNotMatch(publicMenu, /Published' : 'Awaiting menu|Awaiting menu/);
+assert.doesNotMatch(homeMenu, /Menu ready/);
+assert.match(customization, /id="toggle-preparation-preferences"/);
+assert.match(customization, /aria-expanded=\{showPreparationPreferences\}/);
+assert.match(customization, /showPreparationPreferences && <div id="preparation-preference-options"/);
 
 console.log('PASS: customer route hierarchy, disabled subscription paths, exact cutoffs, and Operations role/MFA isolation');

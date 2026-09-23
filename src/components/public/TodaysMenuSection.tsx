@@ -109,7 +109,6 @@ export const TodaysMenuSection = () => {
         <div className="flex items-stretch gap-2.5 overflow-x-auto pb-4 mb-7 scrollbar-none">
           {dates.map((date, index) => {
             const isSelected = date === selectedDate;
-            const isPublished = Boolean(menus[date]);
             return (
               <button
                 key={date}
@@ -125,11 +124,6 @@ export const TodaysMenuSection = () => {
                   {index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : dateLabel(date).split(',')[0]}
                 </span>
                 <span className="block text-sm font-black mt-0.5">{dateLabel(date).replace(/^\w+,\s*/, '')}</span>
-                {!isLoading && (
-                  <span className={`block text-[10px] font-bold mt-1 ${isSelected ? 'text-emerald-100' : isPublished ? 'text-emerald-700' : 'text-stone-400'}`}>
-                    {isPublished ? 'Published' : 'Awaiting menu'}
-                  </span>
-                )}
               </button>
             );
           })}

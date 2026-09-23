@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Sliders, 
   Plus, 
@@ -44,6 +44,7 @@ export const Step3Customization: React.FC<Step3CustomizationProps> = ({
 }) => {
   // Add-ons available for the selected meal.
   const displayAddons = customizationCatalog;
+  const [showPreparationPreferences, setShowPreparationPreferences] = useState(false);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -102,16 +103,29 @@ export const Step3Customization: React.FC<Step3CustomizationProps> = ({
         </div>
       </div>
 
-      {/* 2. Kitchen Preparation Preferences */}
-      <div className="bg-white rounded-3xl p-5 sm:p-7 border border-stone-200 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-          <h3 className="text-base sm:text-lg font-black text-stone-900 tracking-tight">
-            Kitchen Preparation Preferences
-          </h3>
-          <span className="text-xs text-stone-500">No extra charge</span>
-        </div>
+      {/* 2. Optional preparation preferences */}
+      <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
+        <button
+          type="button"
+          id="toggle-preparation-preferences"
+          aria-expanded={showPreparationPreferences}
+          aria-controls="preparation-preference-options"
+          onClick={() => setShowPreparationPreferences(value => !value)}
+          className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-stone-50 sm:p-7"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-[#0D6E44]"><Sliders className="h-5 w-5" /></span>
+            <div>
+              <h3 className="text-sm font-black text-stone-900 sm:text-base">Need a preparation change?</h3>
+              <p className="mt-0.5 text-xs leading-relaxed text-stone-500">Regular mild and homestyle preparation is selected.</p>
+            </div>
+          </div>
+          <span className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-[#0D6E44]">
+            {showPreparationPreferences ? 'Done' : 'Adjust'}
+          </span>
+        </button>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {showPreparationPreferences && <div id="preparation-preference-options" className="content-enter grid grid-cols-1 gap-4 border-t border-stone-100 p-5 sm:grid-cols-2 sm:p-7">
           {/* Spice Level */}
           <div className="space-y-2">
             <label className="text-xs font-black uppercase tracking-wider text-stone-700 block">
@@ -173,7 +187,7 @@ export const Step3Customization: React.FC<Step3CustomizationProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* 3. Add-Ons & Extras (Database Authoritative Prices) */}

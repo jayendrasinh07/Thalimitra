@@ -18,7 +18,7 @@ export interface ThalimitraConfig {
   };
   lunch: {
     startTime: string; // e.g. "12:00 PM"
-    endTime: string;   // e.g. "01:30 PM"
+    endTime: string;   // e.g. "1:30 PM"
     cutoffTimeHours: number; // 10
     cutoffTimeMinutes: number; // 30
     cutoffLabel: string; // "10:30 AM"
@@ -44,25 +44,25 @@ export interface ThalimitraConfig {
 
 export const THALIMITRA_OPERATIONAL_CONFIG: ThalimitraConfig = {
   breakfast: {
-    startTime: '07:30 AM',
-    endTime: '09:00 AM',
+    startTime: '7:30 AM',
+    endTime: '9:00 AM',
     cutoffTimeHours: 22,
     cutoffTimeMinutes: 0,
     cutoffLabel: 'Previous night, 10:00 PM'
   },
   lunch: {
     startTime: '12:00 PM',
-    endTime: '01:30 PM',
+    endTime: '1:30 PM',
     cutoffTimeHours: 10,
     cutoffTimeMinutes: 30,
     cutoffLabel: '10:30 AM'
   },
   dinner: {
-    startTime: '07:30 PM',
-    endTime: '09:00 PM',
+    startTime: '7:30 PM',
+    endTime: '9:00 PM',
     cutoffTimeHours: 17,
     cutoffTimeMinutes: 30,
-    cutoffLabel: '05:30 PM'
+    cutoffLabel: '5:30 PM'
   },
   maxAdvanceBookingDays: 6,
   closedDates: [],

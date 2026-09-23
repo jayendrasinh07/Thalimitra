@@ -58,16 +58,16 @@ export const Step1DateMealSlot: React.FC<Step1DateMealSlotProps> = ({
 
   const breakfastTimeRange = breakfastSlots.length > 0
     ? `${formatSlotTime(breakfastSlots[0].startTime)} – ${formatSlotTime(breakfastSlots[breakfastSlots.length - 1].endTime)}`
-    : '07:30 AM – 09:00 AM';
+    : '7:30 AM – 9:00 AM';
 
   // Get summary time range for each service
   const lunchTimeRange = lunchSlots.length > 0 
     ? `${formatSlotTime(lunchSlots[0].startTime)} – ${formatSlotTime(lunchSlots[lunchSlots.length - 1].endTime)}`
-    : '12:00 PM – 01:30 PM';
+    : '12:00 PM – 1:30 PM';
     
   const dinnerTimeRange = dinnerSlots.length > 0
     ? `${formatSlotTime(dinnerSlots[0].startTime)} – ${formatSlotTime(dinnerSlots[dinnerSlots.length - 1].endTime)}`
-    : '07:30 PM – 09:00 PM';
+    : '7:30 PM – 9:00 PM';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
