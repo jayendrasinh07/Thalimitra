@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const HowItWorksPage: React.FC = () => {
-  const { setIsSubscribeModalOpen } = useApp();
+  const { setActiveTab } = useApp();
 
   return (
     <div className="py-12 bg-white">
@@ -75,26 +75,26 @@ export const HowItWorksPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Pause / Skip Policy Guarantee */}
+        {/* Current single-order cutoff policy */}
         <div className="bg-emerald-950 text-white rounded-3xl p-8 sm:p-12 border border-emerald-800 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="space-y-3 max-w-xl">
             <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-300">
               <RotateCcw className="w-4 h-4" />
-              <span>Zero Money Wasted Guarantee</span>
+              <span>Clear ordering windows</span>
             </div>
             <h3 className="text-2xl sm:text-3xl font-black text-white">
-              Skip anytime before 9:30 AM (Lunch) or 5:00 PM (Dinner)
+              Breakfast closes at 10:00 PM the previous night. Lunch at 10:30 AM. Dinner at 5:30 PM.
             </h3>
             <p className="text-xs text-stone-300">
-              Your meal credit automatically shifts forward. Subscriptions carry over without penalty for up to 45 calendar days.
+              Choose a Kitchen-published meal, see the exact price, and review the delivery window before placing a single order.
             </p>
           </div>
 
           <button
-            onClick={() => setIsSubscribeModalOpen(true)}
+            onClick={() => setActiveTab('order_once')}
             className="px-8 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-stone-950 text-xs sm:text-sm font-black shadow-xl shrink-0 flex items-center gap-2 transition-all"
           >
-            <span>Start Your Routine</span>
+            <span>Order a Meal</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

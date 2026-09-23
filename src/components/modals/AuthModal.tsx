@@ -144,7 +144,7 @@ export const AuthModal: React.FC = () => {
             {isKitchenSignIn
               ? 'Access menu planning and live order operations.'
               : mode === 'signin'
-              ? 'Access your meal subscriptions, saved addresses & orders.' 
+              ? 'Access your saved addresses and orders.'
               : 'Daily fresh, hygienic home-style meals delivered to your doorstep.'}
           </p>
 

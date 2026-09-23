@@ -1,9 +1,9 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { ArrowRight, Sparkles, ShoppingBag, Calendar, Check } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 
 export const HomeActionChoice: React.FC = () => {
-  const { setActiveTab, setIsOrderOnceModalOpen, setIsSubscribeModalOpen } = useApp();
+  const { setActiveTab } = useApp();
 
   return (
     <section className="py-8 sm:py-12 bg-white border-y border-stone-200/80">
@@ -67,50 +67,50 @@ export const HomeActionChoice: React.FC = () => {
             </div>
           </div>
 
-          {/* Card 2: Subscribe */}
+          {/* Card 2: Business meals */}
           <div className="group relative bg-[#FAF8F5] hover:bg-emerald-50/50 rounded-3xl p-6 sm:p-8 border border-stone-200 hover:border-emerald-300 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl font-bold">
-                  🔄
+                  🏢
                 </div>
                 <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full">
-                  Save up to 31%
+                  Teams & workplaces
                 </span>
               </div>
 
               <div>
                 <h3 className="text-xl sm:text-2xl font-black text-stone-900">
-                  Subscribe
+                  Meals for Your Team
                 </h3>
                 <p className="text-stone-600 text-sm mt-1">
-                  For your everyday meals. Fixed daily routine with flexible pause & skip.
+                  Discuss scheduled meal service for an office, factory, campus or team.
                 </p>
               </div>
 
               <div className="pt-2 space-y-1.5 text-xs text-stone-600 font-medium">
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-[#0D6E44]" />
-                  <span>7-Day, 15-Day, or 30-Day plans</span>
+                  <span>Service timing based on your workplace</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-[#0D6E44]" />
-                  <span>Pause anytime during exams, travel or leave</span>
+                  <span>Requirements reviewed before any commitment</span>
                 </div>
               </div>
             </div>
 
             <div className="pt-6 mt-6 border-t border-stone-200/80 flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-700">From ₹76 / meal</span>
+              <span className="text-xs font-bold text-stone-700">Custom enquiry</span>
               <button
-                id="home-action-view-plans"
+                id="home-action-for-business"
                 onClick={() => {
-                  setActiveTab('meal_plans');
+                  setActiveTab('corporate');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className="px-5 py-2.5 rounded-xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <span>View Plans</span>
+                <span>For Business</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>

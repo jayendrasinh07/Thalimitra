@@ -25,7 +25,6 @@ import { CustomerPageSkeleton } from './components/common/CustomerLoadingSkeleto
 if (Capacitor.isNativePlatform()) document.documentElement.classList.add('native-app');
 
 const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then((module) => ({ default: module.HowItWorksPage })));
-const MealPlansPage = React.lazy(() => import('./pages/MealPlansPage').then((module) => ({ default: module.MealPlansPage })));
 const TodaysMenuPage = React.lazy(() => import('./pages/TodaysMenuPage').then((module) => ({ default: module.TodaysMenuPage })));
 const OrderOncePage = React.lazy(() => import('./pages/OrderOncePage').then((module) => ({ default: module.OrderOncePage })));
 const WhyUsPage = React.lazy(() => import('./pages/WhyUsPage').then((module) => ({ default: module.WhyUsPage })));
@@ -36,11 +35,9 @@ const CorporatePage = React.lazy(() => import('./pages/CorporatePage').then((mod
 const TraceabilityPage = React.lazy(() => import('./pages/TraceabilityPage').then((module) => ({ default: module.TraceabilityPage })));
 const QualityStandardsPage = React.lazy(() => import('./pages/QualityStandardsPage').then((module) => ({ default: module.QualityStandardsPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then((module) => ({ default: module.ContactPage })));
-const CustomerDashboard = React.lazy(() => import('./pages/CustomerDashboard').then((module) => ({ default: module.CustomerDashboard })));
 const MealPreferencesPage = React.lazy(() => import('./pages/MealPreferencesPage').then((module) => ({ default: module.MealPreferencesPage })));
 const OrderHistoryPage = React.lazy(() => import('./pages/OrderHistoryPage').then((module) => ({ default: module.OrderHistoryPage })));
 const PasswordRecoveryPage = React.lazy(() => import('./pages/PasswordRecoveryPage').then((module) => ({ default: module.PasswordRecoveryPage })));
-const SubscribeModal = React.lazy(() => import('./components/modals/SubscribeModal').then((module) => ({ default: module.SubscribeModal })));
 const OrderOnceModal = React.lazy(() => import('./components/modals/OrderOnceModal').then((module) => ({ default: module.OrderOnceModal })));
 const TraceabilityModal = React.lazy(() => import('./components/modals/TraceabilityModal').then((module) => ({ default: module.TraceabilityModal })));
 const CorporateEnquiryModal = React.lazy(() => import('./components/modals/CorporateEnquiryModal').then((module) => ({ default: module.CorporateEnquiryModal })));
@@ -114,7 +111,6 @@ const MainContent: React.FC = () => {
   const {
     activeTab,
     isOrderOnceModalOpen,
-    isSubscribeModalOpen,
     isTraceabilityModalOpen,
     isCorporateModalOpen,
     isFeedbackModalOpen,
@@ -143,7 +139,7 @@ const MainContent: React.FC = () => {
       case 'how_it_works':
         return <HowItWorksPage />;
       case 'meal_plans':
-        return <MealPlansPage />;
+        return <OrderOncePage />;
       case 'todays_menu':
         return <TodaysMenuPage />;
       case 'order_once':
@@ -165,7 +161,7 @@ const MainContent: React.FC = () => {
       case 'contact':
         return <ContactPage />;
       case 'customer_dashboard':
-        return isNative ? <NativeAccountPage /> : <CustomerDashboard />;
+        return <NativeAccountPage />;
       case 'meal_preferences':
         return <MealPreferencesPage />;
       case 'order_history':
@@ -186,7 +182,6 @@ const MainContent: React.FC = () => {
 
       <React.Suspense fallback={null}>
         {isOrderOnceModalOpen && <OrderOnceModal />}
-        {isSubscribeModalOpen && <SubscribeModal />}
         {isTraceabilityModalOpen && <TraceabilityModal />}
         {isCorporateModalOpen && <CorporateEnquiryModal />}
         {isFeedbackModalOpen && <FeedbackModal />}

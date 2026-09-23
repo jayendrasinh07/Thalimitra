@@ -24,7 +24,7 @@ assert.match(selectorSource, /We will recheck the menu, cutoff and capacity befo
 assert.doesNotMatch(selectorSource, /â|Ã|Â|�/);
 assert.match(appContextSource, /const scrollToPublishedMenu/);
 assert.match(appContextSource, /document\.getElementById\('todays-menu-section'\)/);
-assert.match(appContextSource, /tab === 'todays_menu' && activeTab === 'todays_menu'/);
+assert.match(appContextSource, /safeTab === 'todays_menu' && activeTab === 'todays_menu'/);
 assert.match(appContextSource, /if \(activeTab === 'todays_menu'\) \{\s*scrollToPublishedMenu\(\)/);
 assert.match(locationServiceSource, /database boundary is authoritative\. Fail closed/);
 assert.doesNotMatch(appContextSource, /evaluateLocationServiceability/);

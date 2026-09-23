@@ -32,7 +32,6 @@ export const OrderConfirmedView: React.FC<OrderConfirmedViewProps> = ({
 }) => {
   const { 
     setActiveTab, 
-    setIsSubscribeModalOpen,
     notificationPermission,
     requestNotificationPermission
   } = useApp();
@@ -233,32 +232,31 @@ export const OrderConfirmedView: React.FC<OrderConfirmedViewProps> = ({
         </div>
       )}
 
-      {/* 4. Subtle Subscription Upgrade Suggestion */}
+      {/* 4. Next order shortcut */}
       <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-emerald-900 to-stone-900 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-400" />
             <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
-              Smart Savings
+              Need another meal?
             </span>
           </div>
           <h4 className="text-base font-black">
-            Ordering Thalimitra regularly?
+            Choose your next Kitchen-published meal
           </h4>
           <p className="text-xs text-stone-300 max-w-sm">
-            Save up to ₹35 per meal, get free pause/resume, and zero daily ordering hassle with a 15-day or 30-day meal plan.
+            Start another single order whenever you need Breakfast, Lunch or Dinner.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => {
-            setActiveTab('meal_plans');
-            setIsSubscribeModalOpen(true);
+            setActiveTab('order_once');
           }}
           className="py-2.5 px-5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-black text-xs shadow-md shrink-0 cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
         >
-          <span>View Meal Plans</span>
+          <span>Order Another Meal</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { ArrowRight, RotateCcw } from 'lucide-react';
+import { SUBSCRIPTIONS_ENABLED } from '../../config/featureFlags';
 
 export const HomeReturningUserBanner: React.FC = () => {
   const { 
@@ -16,7 +17,7 @@ export const HomeReturningUserBanner: React.FC = () => {
     return null;
   }
 
-  const hasActiveSub = subscription && subscription.status === 'active';
+  const hasActiveSub = SUBSCRIPTIONS_ENABLED && subscription && subscription.status === 'active';
   const latestOrder = oneTimeOrders && oneTimeOrders.length > 0 ? oneTimeOrders[0] : null;
 
   if (!hasActiveSub && !latestOrder) {

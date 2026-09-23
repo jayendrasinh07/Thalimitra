@@ -19,7 +19,7 @@ export const HowItWorks: React.FC = () => {
     {
       step: '01',
       title: 'Choose your meal',
-      desc: 'Pick single order or subscription plan. Customize spice level, oil level, or select pure Jain satvik preparation.',
+      desc: 'Choose a Kitchen-published Breakfast, Lunch or Dinner. Review the exact price, then customize available preparation preferences.',
       icon: Utensils,
       image: IMAGES.journey.step1_ingredients,
     },

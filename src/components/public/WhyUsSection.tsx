@@ -33,8 +33,8 @@ export const WhyUsSection: React.FC = () => {
     },
     {
       icon: CalendarCheck,
-      title: 'Flexible Subscription',
-      desc: 'Pause for exams, holidays, or business trips with 1 tap. Skipped meals roll over automatically as extra days.',
+      title: 'Order Only When Needed',
+      desc: 'Choose Breakfast, Lunch or Dinner from the published menu. The exact meal, price and delivery window appear before checkout.',
       image: IMAGES.segments.studentEating,
     },
     {

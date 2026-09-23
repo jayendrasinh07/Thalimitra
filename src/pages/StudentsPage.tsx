@@ -1,13 +1,8 @@
 import React from 'react';
 import { StudentSection } from '../components/public/StudentSection';
-import { MealPlansSection } from '../components/public/MealPlansSection';
-import { FAQSection } from '../components/public/FAQSection';
-import { GraduationCap, Sparkles, BookOpen, Clock, Heart, ArrowRight } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { GraduationCap } from 'lucide-react';
 
 export const StudentsPage: React.FC = () => {
-  const { openCheckoutForPlan } = useApp();
-
   const campuses = [
     { name: 'PDPU / PDEU (Raisan)', desc: 'Direct hostel gate drops at 12:15 PM & 7:45 PM' },
     { name: 'DA-IICT (Sector 9)', desc: 'Gate delivery tailored around lab & lecture breaks' },
@@ -46,8 +41,6 @@ export const StudentsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Student Pricing Highlight */}
-        <MealPlansSection />
       </div>
     </div>
   );

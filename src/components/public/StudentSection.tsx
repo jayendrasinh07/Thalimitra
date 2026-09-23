@@ -5,15 +5,15 @@ import { IMAGES } from '../../data/images';
 import { SmartImage } from '../common/SmartImage';
 
 export const StudentSection: React.FC = () => {
-  const { openCheckoutForPlan, setActiveTab } = useApp();
+  const { setActiveTab } = useApp();
 
   const studentFeatures = [
-    { title: 'Affordable Subscription', desc: 'Healthy wholesome meals starting from just ₹76 to ₹82 per meal with free delivery.' },
+    { title: 'Price Before Checkout', desc: 'See the exact Kitchen-published meal price before placing a single order.' },
     { title: 'Home-Style Meals', desc: 'Clean, light daily Gujarati & North Indian food that keeps you energetic during long study sessions.' },
-    { title: 'Skip Meals with 1 Tap', desc: 'Attending a college fest, hackathon or outing? Skip your meal and save the credit.' },
-    { title: 'Pause Subscription', desc: 'Heading home to Surat, Rajkot, or Vadodara for weekends or holidays? Pause days with zero expiry.' },
-    { title: 'Flexible 15 & 30 Day Plans', desc: 'Semester-aligned routines that match your college exam calendar and budget.' },
-    { title: 'Direct PG & Hostel Delivery', desc: 'Pre-scheduled delivery to PDPU, GNLU, DA-IICT gates and Kudasan/Bhaijipura PGs.' }
+    { title: 'Order Only When Needed', desc: 'Choose Breakfast, Lunch or Dinner only on the days that fit your classes and budget.' },
+    { title: 'Published Daily Menu', desc: 'The real meal, price, cutoff and delivery window are shown before checkout.' },
+    { title: 'Address Service Check', desc: 'Confirm delivery availability for your exact PG, hostel or campus location.' },
+    { title: 'Simple Single Orders', desc: 'No subscription or long-term commitment is required.' }
   ];
 
   return (
@@ -56,12 +56,12 @@ export const StudentSection: React.FC = () => {
               {/* CTA Buttons */}
               <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <button
-                  id="btn-find-student-plan"
-                  onClick={() => openCheckoutForPlan('half_month_15')}
+                  id="btn-order-student-meal"
+                  onClick={() => setActiveTab('order_once')}
                   className="px-8 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-stone-950 text-sm font-black shadow-lg shadow-amber-950/20 hover:shadow-xl transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-stone-950" />
-                  <span>Explore Student Plan (₹82/Meal)</span>
+                  <span>Order a Student Meal</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
@@ -86,9 +86,9 @@ export const StudentSection: React.FC = () => {
                 <div className="absolute bottom-4 left-4 right-4 bg-stone-950/80 backdrop-blur-md p-3.5 rounded-2xl border border-white/15 text-xs text-white flex items-center justify-between">
                   <div>
                     <span className="font-bold block">Kudasan & Bhaijipura Corridors</span>
-                    <span className="text-stone-300 text-[11px]">Free delivery to all PG clusters</span>
+                    <span className="text-stone-300 text-[11px]">Check availability for your exact address</span>
                   </div>
-                  <span className="text-emerald-400 font-mono font-bold">12:30 PM & 8:00 PM</span>
+                  <span className="text-emerald-400 font-mono font-bold">Published daily</span>
                 </div>
               </div>
             </div>

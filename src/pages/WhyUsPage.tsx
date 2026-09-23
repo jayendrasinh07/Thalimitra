@@ -2,11 +2,8 @@ import React from 'react';
 import { WhyUsSection } from '../components/public/WhyUsSection';
 import { HealthQualitySection } from '../components/public/HealthQualitySection';
 import { Check, X, Sparkles, Heart, Clock, DollarSign } from 'lucide-react';
-import { useApp } from '../context/AppContext';
 
 export const WhyUsPage: React.FC = () => {
-  const { setIsSubscribeModalOpen } = useApp();
-
   return (
     <div className="py-12 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">

@@ -3,13 +3,13 @@ import { useApp } from '../context/AppContext';
 import { Briefcase, Clock, ShieldCheck, CheckCircle2, ArrowRight, Flame, MapPin } from 'lucide-react';
 
 export const WorkersPage: React.FC = () => {
-  const { openCheckoutForPlan, setIsAreaCheckerOpen } = useApp();
+  const { setActiveTab, setIsAreaCheckerOpen } = useApp();
 
   const features = [
     { title: 'Sharp 12:00 PM Sirens', desc: 'Meals arrive before factory break bells ring in Sector 24, 25, 26, 28 GIDC.' },
     { title: 'Substantial Wholesome Portions', desc: '5 heavy Phulkas, dense lentils, and filling seasonal vegetables providing sustained physical energy.' },
     { title: 'Digestive Comfort', desc: 'Prepared with low oil and digestive spices so you don’t feel heavy or fatigued on your second shift.' },
-    { title: 'Affordable Direct Plans', desc: '₹76 to ₹82 per meal with free factory gate delivery and weekly pay options.' }
+    { title: 'Clear Single-Order Pricing', desc: 'The live meal price and delivery window are shown before checkout, with no subscription required.' }
   ];
 
   return (
@@ -33,10 +33,10 @@ export const WorkersPage: React.FC = () => {
 
             <div className="pt-4 flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => openCheckoutForPlan('monthly_30')}
+                onClick={() => setActiveTab('order_once')}
                 className="px-8 py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-black text-xs sm:text-sm shadow-md flex items-center gap-2"
               >
-                <span>Start Shift Worker Plan (₹76/Meal)</span>
+                <span>See Published Meals</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 

@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useApp } from '../context/AppContext';
-import { 
-  QrCode, 
-  Star, 
-  ArrowLeft, 
-  CheckCircle2, 
-  Clock, 
-  MapPin, 
-  RotateCcw, 
-  Truck, 
-  Utensils, 
-  XCircle, 
+import {
+  ArrowLeft,
+  MapPin,
+  RotateCcw,
+  Utensils,
+  XCircle,
   Plus,
   ShoppingBag,
   MessageCircle
@@ -28,10 +23,8 @@ const cancellationOptions: Array<{ value: CancellationReason; label: string }> =
 ];
 
 export const OrderHistoryPage: React.FC = () => {
-  const { 
-    setActiveTab, 
-    lookupMealTraceability, 
-    setIsFeedbackModalOpen,
+  const {
+    setActiveTab,
     oneTimeOrders,
     reorderMeal,
     cancelOneTimeOrder,
@@ -41,7 +34,7 @@ export const OrderHistoryPage: React.FC = () => {
     showToast
   } = useApp();
 
-  const [filterType, setFilterType] = useState<'all' | 'one_time' | 'subscription'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'one_time'>('all');
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState<CancellationReason>('ordered_by_mistake');
   const [cancelNote, setCancelNote] = useState('');
@@ -51,8 +44,6 @@ export const OrderHistoryPage: React.FC = () => {
   const [supportBusy, setSupportBusy] = useState(false);
   const isNative = Capacitor.isNativePlatform();
   const startOrder = () => isNative ? setActiveTab('todays_menu') : setIsOrderOnceModalOpen(true);
-
-  const subscriptionHistory: {id:string;date:string;slot:string;items:string;status:string;rating:number|null;temperature:string;van:string}[] = [];
 
   const confirmCancellation = async () => {
     if (!cancelOrderId || cancelBusy) return;
@@ -121,7 +112,7 @@ export const OrderHistoryPage: React.FC = () => {
                 {isNative ? 'My orders' : 'Order & Meal History'}
               </h1>
               <p className="text-xs sm:text-sm text-stone-600 mt-1">
-                {isNative ? 'Track your meals and get help with an order.' : 'Access your one-time meal orders, daily subscription dispatches, and QR quality audits.'}
+                Track your single-meal orders, status and support requests.
               </p>
             </div>
 
@@ -129,8 +120,7 @@ export const OrderHistoryPage: React.FC = () => {
             {!isNative && <div className="flex items-center gap-2 bg-stone-100 p-1.5 rounded-2xl shrink-0">
               {[
                 { id: 'all', label: 'All' },
-                { id: 'one_time', label: `Single Orders (${oneTimeOrders.length})` },
-                { id: 'subscription', label: 'Subscription Log' }
+                { id: 'one_time', label: `Single Orders (${oneTimeOrders.length})` }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -256,71 +246,6 @@ export const OrderHistoryPage: React.FC = () => {
             </div>
           )}
 
-          {/* ================= SUBSCRIPTION DELIVERIES SECTION ================= */}
-          {!isNative && (filterType === 'all' || filterType === 'subscription') && (
-            <div className="space-y-4 pt-4 border-t border-stone-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-black text-stone-900 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-emerald-700" />
-                  <span>Daily Subscription Meal Dispatches</span>
-                </h2>
-                <span className="text-xs text-stone-500 font-semibold">Gandhinagar Cluster Routine</span>
-              </div>
-
-              <div className="space-y-3">
-                {subscriptionHistory.map((order) => (
-                  <div
-                    key={order.id}
-                    className="p-5 rounded-2xl border border-stone-200 bg-stone-50/50 hover:bg-stone-50 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-                  >
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-xs text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                          #{order.id}
-                        </span>
-                        <span className="text-xs text-stone-500 font-medium">{order.date}</span>
-                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                          order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
-                        }`}>
-                          {order.status}
-                        </span>
-                        {order.temperature !== '-' && (
-                          <span className="text-[10px] font-mono text-stone-500 bg-stone-200 px-2 py-0.5 rounded">
-                            Temp: {order.temperature}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="font-bold text-sm text-stone-900">{order.slot}</h3>
-                      <p className="text-xs text-stone-600">{order.items}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3 self-stretch md:self-auto shrink-0">
-                      {order.status === 'Delivered' && (
-                        <>
-                          <button
-                            onClick={() => lookupMealTraceability(order.id)}
-                            className="px-3.5 py-2 rounded-xl bg-white hover:bg-stone-100 border border-stone-300 text-xs font-bold text-stone-800 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                          >
-                            <QrCode className="w-3.5 h-3.5 text-emerald-700" />
-                            <span>Audit QR</span>
-                          </button>
-
-                          <button
-                            onClick={() => setIsFeedbackModalOpen(true)}
-                            className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-xs font-bold text-amber-900 transition-colors flex items-center gap-1 cursor-pointer"
-                          >
-                            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                            <span>{order.rating ? `${order.rating}/5 Rated` : 'Rate Meal'}</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

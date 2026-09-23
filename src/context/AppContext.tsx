@@ -33,6 +33,7 @@ import {
   MEAL_PLANS
 } from '../data/config';
 import { INITIAL_ONE_TIME_ORDERS } from '../data/orders';
+import { SUBSCRIPTIONS_ENABLED } from '../config/featureFlags';
 import { checkMealAvailability, istDate } from '../services/availabilityEngine';
 import { permissionManager } from '../services/permissionService';
 import { 
@@ -253,8 +254,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const initialLegalTab = legalTabForPath();
   const [activeTab, setActiveTabState] = useState<ActiveTab>(tabForPath);
   const setActiveTab = useCallback((tab: ActiveTab) => {
-    setActiveTabState(tab);
-    if (tab === 'todays_menu' && activeTab === 'todays_menu') scrollToPublishedMenu();
+    const safeTab = !SUBSCRIPTIONS_ENABLED && (
+      tab === 'meal_plans' || tab === 'my_subscription' || tab === 'subscription_management'
+    ) ? 'order_once' : tab;
+    setActiveTabState(safeTab);
+    if (safeTab === 'todays_menu' && activeTab === 'todays_menu') scrollToPublishedMenu();
   }, [activeTab]);
   const [userRole, setUserRole] = useState<UserRole>('guest');
   const [subscription, setSubscription] = useState<UserSubscription>(INITIAL_USER_SUBSCRIPTION);
@@ -288,7 +292,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   // Modals
-  const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState<boolean>(false);
+  const [isSubscribeModalOpen, setIsSubscribeModalOpenState] = useState<boolean>(false);
+  const setIsSubscribeModalOpen = useCallback((open: boolean) => {
+    setIsSubscribeModalOpenState(SUBSCRIPTIONS_ENABLED && open);
+  }, []);
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<PlanDuration | null>(null);
   const [isTraceabilityModalOpen, setIsTraceabilityModalOpen] = useState<boolean>(false);
   const [isCorporateModalOpen, setIsCorporateModalOpen] = useState<boolean>(false);
@@ -804,6 +811,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const openCheckoutForPlan = (planId: PlanDuration) => {
+    if (!SUBSCRIPTIONS_ENABLED) {
+      setActiveTab('order_once');
+      return;
+    }
     setSelectedPlanForCheckout(planId);
     setIsSubscribeModalOpen(true);
   };

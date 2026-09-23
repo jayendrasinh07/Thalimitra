@@ -12,7 +12,7 @@ import {
 export const BRAND_CONFIG = {
   name: "Thalimitra",
   tagline: "Roz ka khana. Sahi khana.",
-  subTagline: "Gandhinagar's Premier Daily Home-Food Subscription",
+  subTagline: "Fresh home-style meals in Gandhinagar",
   location: "Gandhinagar, Gujarat, India",
   email: "parmarjayendrasinh41@gmail.com",
   fssaiNumber: "Licence details will be published after verification",
@@ -693,11 +693,11 @@ export const GANDHINAGAR_AREAS = [
 export const FAQS = [
   {
     q: 'How does Thalimitra differ from ordering on Swiggy or Zomato?',
-    a: 'Restaurant apps are meant for occasional heavy dining with high oil, artificial gravies, and unpredictable 45-minute waits with surge delivery fees. Thalimitra is your daily routine: freshly cooked home-style balanced meals (controlled cold-pressed oil, zero soda, MP Sharbati wheat phulkas) delivered punctually every day at your fixed slot on an affordable subscription without daily ordering hassle.'
+    a: 'Thalimitra focuses on Kitchen-published home-style meals with the exact dish, price, cutoff and delivery window shown before each single order.'
   },
   {
-    q: 'Can I pause my subscription if I am going home or travelling?',
-    a: 'Yes! Flexibility is at the core of Thalimitra. You can pause your subscription with just 1 tap on your dashboard up to 2 hours before the cooking batch begins. Your remaining days never expire and simply roll over to your next active days.'
+    q: 'Do I need a subscription to order?',
+    a: 'No. Paid subscriptions are not currently available. Choose a published Breakfast, Lunch or Dinner and place a single order only when you need it.'
   },
   {
     q: 'What if I just want to skip tomorrow’s lunch or dinner?',
@@ -712,8 +712,8 @@ export const FAQS = [
     a: 'Lunch is delivered between 12:00 PM – 1:00 PM (timed specifically for office/college break hours and factory shift sirens). Dinner is delivered between 7:30 PM – 8:30 PM warm in insulated food containers.'
   },
   {
-    q: 'Do you offer special rates or trial plans for students and factory teams?',
-    a: 'Yes, our 15-day and 30-day student plans start at just ₹76–₹82 per wholesome meal. For corporate offices and factory floors with 10+ employees, we provide custom subsidized tier billing with consolidated GST invoicing and hot thermo-crates.'
+    q: 'Do you support student groups, offices or factory teams?',
+    a: 'Customers can place single orders from the published menu. Workplaces and larger groups can send an enquiry so serviceability, timing and commercial terms can be reviewed before any commitment.'
   },
   {
     q: 'How do you maintain hygiene and food quality?',

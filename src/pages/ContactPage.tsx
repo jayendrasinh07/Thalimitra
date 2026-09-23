@@ -113,7 +113,7 @@ export const ContactPage: React.FC = () => {
                       onChange={(e) => setQueryType(e.target.value as SupportCategory)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
                     >
-                      <option value="account_help">Account / subscription help</option>
+                      <option value="account_help">Account or sign-in help</option>
                       <option value="order_help">Order help</option>
                       <option value="cancellation_help">Cancellation help</option>
                       <option value="delivery_help">Delivery help</option>
