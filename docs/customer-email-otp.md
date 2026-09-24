@@ -4,7 +4,7 @@ The customer app has a six-digit signup verification screen and Supabase `verify
 
 ## Production sequence
 
-1. Configure a transactional SMTP sender on the Thalimitra Supabase project using a verified sending domain. Store its credentials only in Supabase Auth SMTP settings; do not commit them. The project's default Free-tier sender cannot serve arbitrary customer addresses or edit templates.
+1. Configure a transactional SMTP sender on the Thalimitra Supabase project using a verified sending domain. Resend Free is suitable for the pilot at up to 100 emails/day and 3,000/month; use its [Supabase SMTP guide](https://resend.com/docs/send-with-supabase-smtp). Store credentials only in Supabase Auth SMTP settings; do not commit them. The project's default Free-tier sender cannot serve arbitrary customer addresses or edit templates.
 2. Change **Auth → Email Templates → Confirm sign up** to include both the six-digit token and confirmation link. Keep the link for older APKs:
 
    ```html
