@@ -49,8 +49,8 @@ export const AuthModal: React.FC = () => {
 
     try {
       if (mode === 'verify' && emailOtpEnabled) {
-        if (!/^\d{6}$/.test(otp)) {
-          setErrorMessage('Enter the 6-digit code from your email.');
+        if (!/^\d{8}$/.test(otp)) {
+          setErrorMessage('Enter the 8-digit code from your email.');
           return;
         }
         const { error } = await verifySignUpOtp(email, otp);
@@ -96,7 +96,7 @@ export const AuthModal: React.FC = () => {
           setPassword('');
           setMode(emailOtpEnabled ? 'verify' : 'signin');
           setInfoMessage(emailOtpEnabled
-            ? 'Enter the 6-digit code sent to your email. Check Spam or Promotions if you cannot find it.'
+            ? 'Enter the 8-digit code sent to your email. Check Spam or Promotions if you cannot find it.'
             : 'Check your email for the Thalimitra confirmation link. Open it, then return here and sign in. There is no code to enter in the app. If the email is missing, check Spam or Promotions.');
           return;
         }
@@ -306,18 +306,18 @@ export const AuthModal: React.FC = () => {
 
           {mode === 'verify' && emailOtpEnabled && (
             <div>
-              <label htmlFor="signup-email-otp" className="block text-xs font-bold text-stone-700 mb-1">6-digit email code</label>
+              <label htmlFor="signup-email-otp" className="block text-xs font-bold text-stone-700 mb-1">8-digit email code</label>
               <input
                 id="signup-email-otp"
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                pattern="[0-9]{6}"
-                maxLength={6}
+                pattern="[0-9]{8}"
+                maxLength={8}
                 required
                 value={otp}
-                onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
+                onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="00000000"
                 className="w-full px-4 py-3 rounded-xl bg-white border border-stone-300 text-center tracking-[0.4em] text-lg font-bold text-stone-900 focus:ring-2 focus:ring-[#0D6E44] focus:border-transparent outline-none"
               />
               <button type="button" onClick={handleResendSignupEmail} disabled={loading} className="mt-2 text-xs font-semibold text-[#0D6E44] hover:underline disabled:opacity-60">
@@ -351,7 +351,7 @@ export const AuthModal: React.FC = () => {
                setMode('verify');
                setPassword('');
                setErrorMessage(null);
-               setInfoMessage('Enter the 6-digit code from your Thalimitra verification email.');
+               setInfoMessage('Enter the 8-digit code from your Thalimitra verification email.');
              }} className="w-full text-xs font-semibold text-[#0D6E44] hover:underline">
                Have a verification code?
              </button>

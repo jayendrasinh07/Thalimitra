@@ -1,11 +1,11 @@
 # Customer signup email OTP rollout
 
-The customer app has a six-digit signup verification screen and Supabase `verifyOtp`/`resend` calls. It stays behind `VITE_CUSTOMER_EMAIL_OTP_ENABLED=true` until the production email sender and template are verified. With the flag unset, the existing confirmation-link flow remains active.
+The customer app has an eight-digit signup verification screen and Supabase `verifyOtp`/`resend` calls, matching the hosted project's Email OTP length setting. It stays behind `VITE_CUSTOMER_EMAIL_OTP_ENABLED=true` until the production email sender and template are verified. With the flag unset, the existing confirmation-link flow remains active.
 
 ## Production sequence
 
 1. Configure a transactional SMTP sender on the Thalimitra Supabase project using a verified sending domain. Resend Free is suitable for the pilot at up to 100 emails/day and 3,000/month; use its [Supabase SMTP guide](https://resend.com/docs/send-with-supabase-smtp). Store credentials only in Supabase Auth SMTP settings; do not commit them. The project's default Free-tier sender cannot serve arbitrary customer addresses or edit templates.
-2. Change **Auth → Email Templates → Confirm sign up** to include both the six-digit token and confirmation link. Keep the link for older APKs:
+2. Change **Auth → Email Templates → Confirm sign up** to include both the eight-digit token and confirmation link. Keep the link for older APKs:
 
    ```html
    <h2>Verify your Thalimitra email</h2>
