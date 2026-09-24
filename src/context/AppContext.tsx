@@ -197,7 +197,7 @@ interface AppContextType {
   setIsAuthModalOpen: (open: boolean) => void;
   isSupabaseConnected: boolean;
   signInUser: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUpUser: (email: string, password: string, fullName: string, phone: string, segment?: CustomerSegmentType) => Promise<{ error: Error | null }>;
+  signUpUser: (email: string, password: string, fullName: string, phone: string, segment?: CustomerSegmentType) => Promise<{ error: Error | null; needsEmailConfirmation: boolean }>;
   signOutUser: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
 
@@ -416,7 +416,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const signUpUser = async (email: string, password: string, fullName: string, phone: string, segment: CustomerSegmentType = 'individual') => {
     const res = await authService.signUp(email, password, fullName, phone, segment);
-    if (!res.error) {
+    if (!res.error && !res.needsEmailConfirmation) {
       await refreshUserProfile();
     }
     return res;

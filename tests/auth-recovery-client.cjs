@@ -33,6 +33,17 @@ function serviceFor(auth, href, native = false, functions = { invoke: async () =
 }
 
 (async () => {
+  let signupOptions;
+  const unconfirmedSignup = serviceFor({ signUp: async options => {
+    signupOptions = options;
+    return { data: { user: { id: 'new-user' }, session: null }, error: null };
+  } }, 'https://thalimitra.com/');
+  const pendingSignup = await unconfirmedSignup.authService.signUp('new@example.com', 'StrongPassword1!', 'New Customer', '9876543210');
+  assert.equal(pendingSignup.needsEmailConfirmation, true);
+  assert.equal(signupOptions.options.emailRedirectTo, 'https://thalimitra.com/');
+  const immediateSignup = serviceFor({ signUp: async () => ({ data: { user: { id: 'new-user' }, session: { access_token: 'token' } }, error: null }) }, 'https://thalimitra.com/');
+  assert.equal((await immediateSignup.authService.signUp('new@example.com', 'StrongPassword1!', 'New Customer', '9876543210')).needsEmailConfirmation, false);
+
   let invoked;
   const customerReset = serviceFor({}, 'https://thalimitra.com/', false, { invoke: async (name, options) => { invoked = { name, options }; return { error: null }; } });
   assert.equal((await customerReset.authService.requestPasswordReset('customer@example.com', 'customer')).error, null);

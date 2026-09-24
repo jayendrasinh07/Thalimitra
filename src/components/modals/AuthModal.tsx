@@ -71,9 +71,15 @@ export const AuthModal: React.FC = () => {
           return;
         }
 
-        const { error } = await signUpUser(email, password, fullName, phone);
+        const { error, needsEmailConfirmation } = await signUpUser(email, password, fullName, phone);
         if (error) {
           setErrorMessage(error.message || 'Could not complete registration.');
+          return;
+        }
+        if (needsEmailConfirmation) {
+          setPassword('');
+          setMode('signin');
+          setInfoMessage('Check your email for the Thalimitra confirmation link. Open it, then return here and sign in. There is no code to enter in the app. If the email is missing, check Spam or Promotions.');
           return;
         }
         showToast('Account Created!', 'Welcome to Thalimitra Gandhinagar. Your profile is ready.', 'success');

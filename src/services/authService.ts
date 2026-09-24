@@ -35,8 +35,8 @@ export const authService = {
     fullName: string,
     phone: string,
     segment: CustomerSegmentType = 'individual'
-  ): Promise<{ user: User | null; error: Error | null }> {
-    if (!isSupabaseConfigured()) { return {user:null,error:new Error('Sign-in is currently unavailable.')} ; }
+  ): Promise<{ user: User | null; needsEmailConfirmation: boolean; error: Error | null }> {
+    if (!isSupabaseConfigured()) { return {user:null,needsEmailConfirmation:false,error:new Error('Sign-in is currently unavailable.')} ; }
 
     try {
       const client = getSupabaseClient();
@@ -44,6 +44,7 @@ export const authService = {
         email,
         password,
         options: {
+          emailRedirectTo: 'https://thalimitra.com/',
           data: {
             full_name: fullName,
             phone,
@@ -53,10 +54,10 @@ export const authService = {
       });
 
       if (error) throw error;
-      return { user: data.user, error: null };
+      return { user: data.user, needsEmailConfirmation: !data.session, error: null };
     } catch (err: any) {
       console.error('[Thalimitra Auth] Sign up error:', err);
-      return { user: null, error: err };
+      return { user: null, needsEmailConfirmation: false, error: err };
     }
   },
 
