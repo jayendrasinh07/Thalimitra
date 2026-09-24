@@ -125,6 +125,18 @@ export const Navbar: React.FC = () => {
             </button>
 
             <button
+              id="nav-plans"
+              onClick={() => handleNavClick('meal_plans')}
+              className={`px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
+                activeTab === 'meal_plans'
+                  ? 'text-[#0D6E44] bg-emerald-50 font-bold'
+                  : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100/70'
+              }`}
+            >
+              Meal Plans
+            </button>
+
+            <button
               id="nav-business"
               onClick={() => handleNavClick('corporate')}
               className={`px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
@@ -256,6 +268,15 @@ export const Navbar: React.FC = () => {
               }`}
             >
               How It Works
+            </button>
+
+            <button
+              onClick={() => handleNavClick('meal_plans')}
+              className={`p-3 rounded-xl text-left text-xs font-bold cursor-pointer transition-colors ${
+                activeTab === 'meal_plans' ? 'bg-emerald-50 text-[#0D6E44] border border-emerald-200' : 'bg-stone-50 text-stone-700 hover:bg-stone-100'
+              }`}
+            >
+              Meal Plans
             </button>
 
             <button

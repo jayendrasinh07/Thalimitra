@@ -201,7 +201,7 @@ export const LegalModal: React.FC = () => {
               <div>
                 <h4 className="font-bold text-stone-900 text-sm mb-1">6. Subscriptions</h4>
                 <p className="text-stone-600">
-                  Paid subscriptions are not available. Any future subscription will have separate pricing, pause, cancellation, and refund terms displayed before purchase.
+                  A meal plan request does not create a paid subscription. We first confirm the delivery address, preferred service, capacity and final price. A plan becomes active only after the customer accepts the quote and Operations verifies payment. Pause, cancellation and any applicable refund are handled against the active plan record.
                 </p>
               </div>
             </div>
@@ -213,7 +213,7 @@ export const LegalModal: React.FC = () => {
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950">
                 <p className="font-bold text-xs">One-Time Order Cancellation & Refund Rules</p>
                 <p className="text-xs text-amber-800 mt-1">
-                  These rules apply to one-time meal orders. Paid subscriptions are not available.
+                  These rules apply to one-time meal orders. Meal plan cancellations and any applicable refund are reviewed against the separately confirmed plan and payment record.
                 </p>
               </div>
 

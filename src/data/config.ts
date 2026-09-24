@@ -513,40 +513,34 @@ export const MOCK_TRACEABILITY_MEAL: MealTraceabilityInfo = {
 };
 
 export const INITIAL_USER_SUBSCRIPTION: UserSubscription = {
-  id: 'SUB-GJ-9821',
-  userId: 'USR-892',
-  userName: 'Aarav Patel',
-  userPhone: '+91 98254 99120',
-  userEmail: 'aarav.patel.pdpu@gmail.com',
-  userSegment: 'student',
+  id: '',
+  userId: '',
+  userName: '',
+  userPhone: '',
+  userEmail: '',
+  userSegment: 'individual',
   planId: 'half_month_15',
   planName: '15-Day Semester / Work Plan',
   slot: 'lunch',
   dietType: 'standard_gujarati',
   portionSize: 'regular',
-  status: 'active',
-  startDate: '2026-08-10',
-  expiryDate: '2026-08-28',
+  status: 'completed',
+  startDate: '',
+  expiryDate: '',
   totalDays: 15,
-  daysRemaining: 18, // as requested in specs: "Days Remaining: 18"
-  mealsDeliveredCount: 8,
-  pausedDates: ['2026-08-15'],
-  skippedDates: ['2026-08-17'],
+  daysRemaining: 0,
+  mealsDeliveredCount: 0,
+  pausedDates: [],
+  skippedDates: [],
   deliveryAddress: {
-    street: 'Room 402, Shivalik Elite Boys PG, Near Swagat Flamingo',
-    area: 'Kudasan',
-    sector: 'PDPU Knowledge Corridor',
-    pincode: '382421',
-    landmark: 'Behind Reliance Petrol Pump',
-    clusterId: 'cluster-a',
-    deliveryTimeSlot: '12:15 PM - 12:45 PM'
+    street: '', area: '', sector: '', pincode: '', landmark: '', clusterId: '', deliveryTimeSlot: ''
   },
   addons: {
     extraRoti: false,
     chaasDaily: true,
     sweetSunday: true
   },
-  specialInstructions: 'Please leave with PG security guard if in lecture.'
+  specialInstructions: ''
 };
 
 export const MOCK_KITCHEN_BATCHES: KitchenBatch[] = [
@@ -697,7 +691,7 @@ export const FAQS = [
   },
   {
     q: 'Do I need a subscription to order?',
-    a: 'No. Paid subscriptions are not currently available. Choose a published Breakfast, Lunch or Dinner and place a single order only when you need it.'
+    a: 'No. You can place a single order whenever you need one. Optional 7, 15 and 30-meal routines can be requested separately; Operations confirms serviceability, capacity and the final price before payment.'
   },
   {
     q: 'What if I just want to skip tomorrow’s lunch or dinner?',

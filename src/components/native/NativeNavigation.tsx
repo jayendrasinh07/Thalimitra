@@ -16,6 +16,7 @@ export const NativeNavigation = () => {
   const title = activeTab === 'home' ? 'Thalimitra' : activeTab === 'todays_menu' ? 'Menu' :
     activeTab === 'order_history' ? 'Orders' : activeTab === 'customer_dashboard' ? 'Account' :
       activeTab === 'order_once' ? 'Place order' : activeTab === 'contact' ? 'Help & support' :
+        activeTab === 'meal_plans' || activeTab === 'my_subscription' ? 'Meal plans' :
         activeTab === 'coverage' ? 'Delivery areas' : 'Thalimitra';
   const navigate = (tab: ActiveTab) => {
     setActiveTab(tab);

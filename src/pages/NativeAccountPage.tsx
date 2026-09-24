@@ -1,4 +1,4 @@
-import { ArrowRight, CircleHelp, LogOut, MapPin, ShieldCheck, ShoppingBag, UserRound } from 'lucide-react';
+import { ArrowRight, CalendarDays, CircleHelp, LogOut, MapPin, ShieldCheck, ShoppingBag, UserRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const NativeAccountPage = () => {
@@ -17,6 +17,7 @@ export const NativeAccountPage = () => {
 
     <section aria-label="Your account" className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
       <AccountRow icon={ShoppingBag} label="My orders" detail="Status, help and past meals" onClick={() => setActiveTab('order_history')} />
+      <AccountRow icon={CalendarDays} label="Meal plans" detail="Request a routine or track its approval" onClick={() => setActiveTab('meal_plans')} />
       <AccountRow icon={MapPin} label="Delivery addresses" detail={currentUser ? `${savedAddresses.length} saved` : 'Choose your delivery location'} onClick={() => setIsLocationModalOpen(true)} />
     </section>
 

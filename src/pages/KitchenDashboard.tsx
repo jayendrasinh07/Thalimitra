@@ -34,12 +34,13 @@ import { KitchenMenuPlanner } from '../components/kitchen/KitchenMenuPlanner';
 import { KitchenManagement } from '../components/kitchen/KitchenManagement';
 import { KitchenBusinessAnalytics } from '../components/kitchen/KitchenBusinessAnalytics';
 import { PromotionManagement } from '../components/kitchen/PromotionManagement';
+import { SubscriptionManagement } from '../components/kitchen/SubscriptionManagement';
 import { istDate } from '../services/availabilityEngine';
 import { kitchenService, type KitchenOrder, type KitchenRealtimeStatus, type KitchenShift, type KitchenStatus } from '../services/kitchenService';
 import { createKitchenQueue, emptyKitchenQueue, type KitchenQueueState } from '../services/kitchenQueue';
 import { kitchenOrderAge, newConfirmedOrders } from '../services/kitchenAlertEngine';
 
-type KitchenWorkspace = 'overview' | 'catalog' | 'menu' | 'orders' | 'offers' | 'management' | 'reports';
+type KitchenWorkspace = 'overview' | 'catalog' | 'menu' | 'orders' | 'offers' | 'subscriptions' | 'management' | 'reports';
 type KitchenSort = 'delivery' | 'oldest' | 'newest';
 
 const pageCopy: Record<KitchenWorkspace, { eyebrow: string; title: string; description: string }> = {
@@ -48,6 +49,7 @@ const pageCopy: Record<KitchenWorkspace, { eyebrow: string; title: string; descr
   menu: { eyebrow: 'Daily planning', title: 'Daily menu', description: 'Choose catalog meals and publish breakfast, lunch and dinner.' },
   orders: { eyebrow: 'Live operations', title: 'Live orders', description: 'See who ordered what and move meals through preparing and ready.' },
   offers: { eyebrow: 'Admin financial control', title: 'Pricing & Offers', description: 'Create controlled promotions, budgets and customer eligibility rules.' },
+  subscriptions: { eyebrow: 'Admin financial control', title: 'Meal subscriptions', description: 'Review requests, confirm final pricing and activate only after verified payment.' },
   management: { eyebrow: 'Admin controls', title: 'Management', description: 'Control capacity, Kitchen staff access, and customer support requests.' },
   reports: { eyebrow: 'Business intelligence', title: 'Reports', description: 'Understand order demand, portions, booked value, cancellations and popular meals.' },
 };
@@ -63,6 +65,7 @@ const workspaceForPath = (): KitchenWorkspace => {
   const path = window.location.pathname.replace(/\/+$/, '');
   return path === '/management' || path === '/kitchen/management' ? 'management'
     : path === '/offers' || path === '/kitchen/offers' ? 'offers'
+    : path === '/subscriptions' || path === '/kitchen/subscriptions' ? 'subscriptions'
     : path === '/reports' || path === '/kitchen/reports' ? 'reports'
       : 'overview';
 };
@@ -266,6 +269,10 @@ export const KitchenDashboard: React.FC = () => {
               className={`flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition lg:w-full ${workspace === 'offers' ? 'bg-amber-100 text-amber-950 shadow-sm' : 'text-amber-100 hover:bg-white/10'}`}>
               <BadgePercent className="h-5 w-5" />Pricing & Offers
             </button>
+            <button type="button" onClick={() => setWorkspace('subscriptions')} aria-current={workspace === 'subscriptions' ? 'page' : undefined}
+              className={`mt-1 flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition lg:w-full ${workspace === 'subscriptions' ? 'bg-amber-100 text-amber-950 shadow-sm' : 'text-amber-100 hover:bg-white/10'}`}>
+              <UtensilsCrossed className="h-5 w-5" />Subscriptions
+            </button>
             <button type="button" onClick={() => setWorkspace('management')} aria-current={workspace === 'management' ? 'page' : undefined}
               className={`mt-1 flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition lg:w-full ${workspace === 'management' ? 'bg-amber-100 text-amber-950 shadow-sm' : 'text-amber-100 hover:bg-white/10'}`}>
               <Settings className="h-5 w-5" />Management
@@ -310,6 +317,9 @@ export const KitchenDashboard: React.FC = () => {
           {workspace === 'offers' && (hasAdminAccess
             ? <PromotionManagement />
             : <div role="alert" className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm"><ShieldCheck className="mx-auto h-9 w-9 text-red-700" /><h2 className="mt-3 text-xl font-black text-stone-900">Admin access required</h2><p className="mt-2 text-sm text-stone-500">Pricing & Offers is available only to an account with the admin role.</p><button type="button" onClick={() => setWorkspace('overview')} className="mt-5 min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white">Back to Kitchen overview</button></div>)}
+          {workspace === 'subscriptions' && (hasAdminAccess
+            ? <SubscriptionManagement />
+            : <div role="alert" className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm"><ShieldCheck className="mx-auto h-9 w-9 text-red-700" /><h2 className="mt-3 text-xl font-black text-stone-900">Admin access required</h2><p className="mt-2 text-sm text-stone-500">Subscriptions are available only to an account with the admin role.</p><button type="button" onClick={() => setWorkspace('overview')} className="mt-5 min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white">Back to Kitchen overview</button></div>)}
           {workspace === 'management' && (hasAdminAccess
             ? <KitchenManagement />
             : <div role="alert" className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm"><ShieldCheck className="mx-auto h-9 w-9 text-red-700" /><h2 className="mt-3 text-xl font-black text-stone-900">Admin access required</h2><p className="mt-2 text-sm text-stone-500">This page is available only to an account with the admin role.</p><button type="button" onClick={() => setWorkspace('overview')} className="mt-5 min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white">Back to Kitchen overview</button></div>)}

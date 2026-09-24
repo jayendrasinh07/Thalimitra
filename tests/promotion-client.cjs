@@ -3,7 +3,7 @@ const { stripTypeScriptTypes } = require('node:module');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
-const promotionIdFix = readFileSync('supabase/migrations/20260923162319_fix_promotion_campaign_ambiguous_id.sql', 'utf8');
+const promotionIdFix = readFileSync('supabase/migrations/20260923162536_fix_promotion_campaign_ambiguous_id.sql', 'utf8');
 
 const source = readFileSync('src/services/promotionService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')

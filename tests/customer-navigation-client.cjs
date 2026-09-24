@@ -20,9 +20,10 @@ const publicMenu = read('src/components/public/TodaysMenuSection.tsx');
 const homeMenu = read('src/components/public/HomeMealSelector.tsx');
 const availabilityEngine = read('src/services/availabilityEngine.ts');
 
-assert.match(flags, /SUBSCRIPTIONS_ENABLED\s*=\s*false/);
-assert.doesNotMatch(app, /import\('\.\/components\/modals\/SubscribeModal'\)/);
-assert.doesNotMatch(app, /<SubscribeModal\s*\/?>/);
+assert.match(flags, /SUBSCRIPTIONS_ENABLED\s*=\s*true/);
+assert.match(app, /import\('\.\/components\/modals\/SubscribeModal'\)/);
+assert.match(app, /<SubscribeModal\s*\/?>/);
+assert.match(app, /case 'meal_plans':[\s\S]*case 'my_subscription':[\s\S]*<MealPlansPage/);
 assert.match(context, /tab === 'meal_plans'.*tab === 'my_subscription'.*tab === 'subscription_management'/s);
 assert.match(context, /if \(!SUBSCRIPTIONS_ENABLED\)\s*{\s*setActiveTab\('order_once'\)/s);
 assert.match(howItWorks, /Breakfast closes at 10:00 PM the previous night\. Lunch at 10:30 AM\. Dinner at 5:30 PM\./);
@@ -43,7 +44,7 @@ for (const origin of ['home', 'todays_menu', 'order_history', 'customer_dashboar
 assert.match(orderNavigation, /return isOrderOrigin\(saved\) \? saved : 'home'/);
 for (const [id, tab] of [
   ['nav-home', 'home'], ['nav-menu', 'todays_menu'], ['nav-how', 'how_it_works'],
-  ['nav-business', 'corporate'], ['nav-order-now-btn', 'todays_menu']
+  ['nav-plans', 'meal_plans'], ['nav-business', 'corporate'], ['nav-order-now-btn', 'todays_menu']
 ]) {
   assert.match(navbar, new RegExp(`id="${id}"[\\s\\S]*?handleNavClick\\('${tab}'\\)`));
 }
@@ -69,4 +70,4 @@ assert.match(customization, /spiceLevel === 'Less Spicy' \? 'Very mild \(less sp
 assert.match(customization, /oilLevel === 'Less Oil \(Fit\)' \? 'Low-oil \(no ghee\)' : 'Homestyle ghee brush'/);
 assert.match(customization, /aria-live="polite">\{preparationSummary\}/);
 
-console.log('PASS: customer route hierarchy, disabled subscription paths, exact cutoffs, and Operations role/MFA isolation');
+console.log('PASS: customer route hierarchy, subscription routes, exact cutoffs, and Operations role/MFA isolation');

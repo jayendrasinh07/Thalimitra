@@ -1,473 +1,85 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, CheckCircle2, MapPin, ShieldCheck, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { 
-  X, 
-  Check, 
-  Sparkles, 
-  MapPin, 
-  Clock, 
-  ShieldCheck, 
-  Utensils, 
-  Flame, 
-  ChevronRight,
-  ArrowLeft,
-  Calendar
-} from 'lucide-react';
-import { MEAL_PLANS, GANDHINAGAR_AREAS } from '../../data/config';
-import { CustomerSegment, PlanDuration, MealSlot, DietType, PortionSize } from '../../types';
+import { subscriptionService, type SubscriptionPlanCode } from '../../services/subscriptionService';
+import type { ServiceMealType } from '../../types';
+
+const plans: Record<SubscriptionPlanCode, { name: string; meals: number }> = {
+  weekly_7: { name: '7-Meal Routine', meals: 7 },
+  half_month_15: { name: '15-Meal Routine', meals: 15 },
+  monthly_30: { name: '30-Meal Routine', meals: 30 },
+};
+
+const todayInIndia = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(new Date());
 
 export const SubscribeModal: React.FC = () => {
-  const { 
-    isSubscribeModalOpen, 
-    setIsSubscribeModalOpen, 
-    selectedPlanForCheckout, 
-    createNewSubscription 
-  } = useApp();
+  const { isSubscribeModalOpen, setIsSubscribeModalOpen, selectedPlanForCheckout, currentUser,
+    savedAddresses, setIsAuthModalOpen, setIsLocationModalOpen, showToast } = useApp();
+  const initialPlan = selectedPlanForCheckout === 'weekly_7' || selectedPlanForCheckout === 'monthly_30'
+    ? selectedPlanForCheckout : 'half_month_15';
+  const [planCode, setPlanCode] = useState<SubscriptionPlanCode>(initialPlan);
+  const [mealType, setMealType] = useState<ServiceMealType>('lunch');
+  const serviceableAddresses = useMemo(() => savedAddresses.filter(address => address.isServiceable), [savedAddresses]);
+  const [addressId, setAddressId] = useState('');
+  const [startDate, setStartDate] = useState(todayInIndia());
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [step, setStep] = useState<number>(1);
-  const [segment, setSegment] = useState<CustomerSegment>('student');
-  const [selectedPlan, setSelectedPlan] = useState<PlanDuration>(selectedPlanForCheckout || 'half_month_15');
-  const [slot, setSlot] = useState<MealSlot>('lunch');
-  const [diet, setDiet] = useState<DietType>('standard_gujarati');
-  const [portion, setPortion] = useState<PortionSize>('regular');
-  
-  // Address form
-  const [name, setName] = useState('Aarav Patel');
-  const [phone, setPhone] = useState('+91 98254 99120');
-  const [email, setEmail] = useState('aarav.patel.pdpu@gmail.com');
-  const [street, setStreet] = useState('Room 402, Shivalik Elite Boys PG, Near Swagat Flamingo');
-  const [selectedAreaIndex, setSelectedAreaIndex] = useState(1); // Kudasan
-  const [landmark, setLandmark] = useState('Behind Reliance Petrol Pump');
-  const [specialInstructions, setSpecialInstructions] = useState('Please leave with PG security guard if in lecture.');
-  
-  // Addons
-  const [addons, setAddons] = useState({
-    extraRoti: false,
-    chaasDaily: true,
-    sweetSunday: true
-  });
+  useEffect(() => {
+    if (!isSubscribeModalOpen) return;
+    setPlanCode(initialPlan);
+    setAddressId(serviceableAddresses.find(address => address.isDefault)?.id || serviceableAddresses[0]?.id || '');
+    setError(null);
+  }, [isSubscribeModalOpen, initialPlan, serviceableAddresses]);
 
   if (!isSubscribeModalOpen) return null;
 
-  const currentArea = GANDHINAGAR_AREAS[selectedAreaIndex] || GANDHINAGAR_AREAS[0];
-  const activePlanObj = MEAL_PLANS.find((p) => p.id === selectedPlan) || MEAL_PLANS[2];
-
-  const handleNext = () => {
-    if (step < 3) {
-      setStep(step + 1);
-    } else {
-      // Complete subscription
-      createNewSubscription(
-        selectedPlan,
-        segment,
-        slot,
-        diet,
-        portion,
-        {
-          street,
-          area: currentArea.area,
-          sector: currentArea.sector,
-          pincode: currentArea.pincode,
-          landmark,
-          clusterId: currentArea.cluster.startsWith('Cluster A') ? 'cluster-a' : currentArea.cluster.startsWith('Cluster B') ? 'cluster-b' : currentArea.cluster.startsWith('Cluster C') ? 'cluster-c' : 'cluster-d',
-          deliveryTimeSlot: slot === 'lunch' ? currentArea.lunchSlot : currentArea.dinnerSlot
-        },
-        addons
-      );
+  const submit = async () => {
+    if (!currentUser) {
+      setIsSubscribeModalOpen(false); setIsAuthModalOpen(true);
+      showToast('Sign in required', 'Sign in to save and track your meal plan request.', 'info');
+      return;
     }
+    if (!addressId) { setError('Add a saved serviceable delivery address first.'); return; }
+    setBusy(true); setError(null);
+    try {
+      await subscriptionService.request({ planCode, mealType, addressId, preferredStartDate: startDate, note });
+      window.dispatchEvent(new Event('thalimitra:subscriptions-updated'));
+      setIsSubscribeModalOpen(false);
+      showToast('Meal plan request saved', 'Operations will verify the schedule, service area and final price before payment.', 'success');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Meal plan request could not be saved.');
+    } finally { setBusy(false); }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-stone-200 overflow-hidden animate-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#107048] to-[#0A4E32] px-6 py-5 text-white flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="bg-amber-400 text-stone-950 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full">
-                Step {step} of 3
-              </span>
-              <span className="text-emerald-100 text-xs font-semibold">Gandhinagar Routine Setup</span>
-            </div>
-            <h3 className="text-xl font-bold text-white mt-1">
-              {step === 1 && '1. Choose Your Daily Plan'}
-              {step === 2 && '2. Set Your Food & Diet Preferences'}
-              {step === 3 && '3. Delivery Location in Gandhinagar'}
-            </h3>
-          </div>
-          <button
-            onClick={() => setIsSubscribeModalOpen(false)}
-            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+  return <div className="fixed inset-0 z-[100] flex items-end justify-center bg-stone-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="subscription-title">
+    <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+      <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-emerald-800/30 bg-[#0D6E44] p-5 text-white sm:p-6">
+        <div><p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Meal routine request</p><h2 id="subscription-title" className="mt-1 text-2xl font-black">Plan your regular meals</h2><p className="mt-1 text-sm text-emerald-100">We confirm availability and the final amount before payment.</p></div>
+        <button type="button" onClick={() => setIsSubscribeModalOpen(false)} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10"><X /></button>
+      </header>
+
+      <div className="space-y-5 p-5 sm:p-6">
+        <fieldset><legend className="text-sm font-black text-stone-900">Choose a routine</legend><div className="mt-2 grid grid-cols-3 gap-2">{(Object.entries(plans) as [SubscriptionPlanCode, { name: string; meals: number }][]).map(([code, plan]) => <button key={code} type="button" onClick={() => setPlanCode(code)} className={`min-h-20 rounded-2xl border p-3 text-left ${planCode === code ? 'border-emerald-700 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-700' : 'border-stone-200 bg-stone-50 text-stone-700'}`}><span className="block text-lg font-black">{plan.meals}</span><span className="text-xs font-bold">meals</span></button>)}</div></fieldset>
+
+        <fieldset><legend className="text-sm font-black text-stone-900">Preferred service</legend><div className="mt-2 grid grid-cols-3 gap-2">{(['breakfast','lunch','dinner'] as ServiceMealType[]).map(type => <button key={type} type="button" onClick={() => setMealType(type)} className={`min-h-12 rounded-xl border text-sm font-bold capitalize ${mealType === type ? 'border-emerald-700 bg-emerald-50 text-emerald-900' : 'border-stone-200 text-stone-600'}`}>{type}</button>)}</div></fieldset>
+
+        <label className="block text-sm font-black text-stone-900">Preferred start date<div className="relative mt-2"><CalendarDays className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-emerald-700" /><input type="date" min={todayInIndia()} value={startDate} onChange={event => setStartDate(event.target.value)} className="min-h-12 w-full rounded-xl border border-stone-200 pl-11 pr-3 text-sm font-bold" /></div></label>
+
+        <div><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-stone-900">Delivery address</p><button type="button" onClick={() => { setIsSubscribeModalOpen(false); currentUser ? setIsLocationModalOpen(true) : setIsAuthModalOpen(true); }} className="text-xs font-black text-emerald-700">{currentUser ? 'Add address' : 'Sign in'}</button></div>
+          {serviceableAddresses.length > 0 ? <div className="mt-2 space-y-2">{serviceableAddresses.map(address => <label key={address.id} className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-3 ${addressId === address.id ? 'border-emerald-600 bg-emerald-50' : 'border-stone-200'}`}><input type="radio" name="subscription-address" checked={addressId === address.id} onChange={() => setAddressId(address.id)} className="mt-1 accent-emerald-700" /><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /><span className="min-w-0 text-sm"><strong className="block text-stone-900">{address.label}</strong><span className="block truncate text-stone-500">{[address.addressLine1, address.area, address.sector, address.pincode].filter(Boolean).join(', ')}</span></span></label>)}</div>
+            : <button type="button" onClick={() => { setIsSubscribeModalOpen(false); currentUser ? setIsLocationModalOpen(true) : setIsAuthModalOpen(true); }} className="mt-2 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 text-sm font-bold text-amber-900"><MapPin className="h-5 w-5" />{currentUser ? 'Add a serviceable delivery address' : 'Sign in and add delivery address'}</button>}
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 max-h-[75vh] overflow-y-auto">
-          {/* STEP 1: Plan & Segment */}
-          {step === 1 && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
-                  Who is this meal plan for?
-                </label>
-                <div className="grid grid-cols-3 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setSegment('student')}
-                    className={`p-3 rounded-2xl border text-left transition-all ${
-                      segment === 'student'
-                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 text-emerald-950 font-bold'
-                        : 'border-stone-200 hover:border-stone-300 text-stone-700'
-                    }`}
-                  >
-                    <div className="text-sm font-bold">Student / PG</div>
-                    <div className="text-xs text-stone-500 mt-0.5">PDPU, DA-IICT, GNLU</div>
-                  </button>
+        <label className="block text-sm font-black text-stone-900">Anything Operations should know? <span className="font-normal text-stone-400">Optional</span><textarea value={note} onChange={event => setNote(event.target.value)} maxLength={500} rows={3} placeholder="Preferred weekdays, timing constraint, or food routine." className="mt-2 w-full rounded-xl border border-stone-200 p-3 text-sm font-normal" /></label>
 
-                  <button
-                    type="button"
-                    onClick={() => setSegment('worker')}
-                    className={`p-3 rounded-2xl border text-left transition-all ${
-                      segment === 'worker'
-                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 text-emerald-950 font-bold'
-                        : 'border-stone-200 hover:border-stone-300 text-stone-700'
-                    }`}
-                  >
-                    <div className="text-sm font-bold">Office Employee</div>
-                    <div className="text-xs text-stone-500 mt-0.5">Infocity & GIFT City</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSegment('individual')}
-                    className={`p-3 rounded-2xl border text-left transition-all ${
-                      segment === 'individual'
-                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 text-emerald-950 font-bold'
-                        : 'border-stone-200 hover:border-stone-300 text-stone-700'
-                    }`}
-                  >
-                    <div className="text-sm font-bold">Resident / Family</div>
-                    <div className="text-xs text-stone-500 mt-0.5">Sectors 1 to 30</div>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
-                  Select Subscription Duration
-                </label>
-                <div className="space-y-2.5">
-                  {MEAL_PLANS.filter((p) => p.id !== 'corporate_custom').map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => setSelectedPlan(p.id)}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
-                        selectedPlan === p.id
-                          ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-600/30'
-                          : 'border-stone-200 hover:border-stone-300'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center ${
-                          selectedPlan === p.id ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-stone-300'
-                        }`}>
-                          {selectedPlan === p.id && <Check className="w-3 h-3" />}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-stone-900">{p.name}</span>
-                            {p.isPopular && (
-                              <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-amber-400 text-stone-950">
-                                Most Popular
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-stone-500 mt-0.5">{p.tagline}</p>
-                          <div className="text-xs text-emerald-700 font-medium mt-1">
-                            {p.totalMeals} meals • Flexible pause up to {p.flexibility.pauseAllowedDays} days
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <div className="text-lg font-extrabold text-stone-900">₹{p.totalPrice}</div>
-                        <div className="text-xs text-stone-500 font-medium">₹{p.pricePerMeal}/meal</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: Preferences */}
-          {step === 2 && (
-            <div className="space-y-6">
-              {/* Slot */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
-                  Delivery Time Slot
-                </label>
-                <div className="grid grid-cols-3 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setSlot('lunch')}
-                    className={`p-3 rounded-2xl border text-center transition-all ${
-                      slot === 'lunch'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold'
-                        : 'border-stone-200 text-stone-700'
-                    }`}
-                  >
-                    <div className="text-sm font-bold">Lunch Only</div>
-                    <div className="text-xs text-stone-500">12:00 – 1:00 PM</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSlot('dinner')}
-                    className={`p-3 rounded-2xl border text-center transition-all ${
-                      slot === 'dinner'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold'
-                        : 'border-stone-200 text-stone-700'
-                    }`}
-                  >
-                    <div className="text-sm font-bold">Dinner Only</div>
-                    <div className="text-xs text-stone-500">7:30 – 8:30 PM</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSlot('both')}
-                    className={`p-3 rounded-2xl border text-center transition-all ${
-                      slot === 'both'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold'
-                        : 'border-stone-200 text-stone-700'
-                    }`}
-                  >
-                    <div className="text-sm font-bold">Lunch + Dinner</div>
-                    <div className="text-xs text-stone-500">Both Daily Slots</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Diet Type */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
-                  Food Preparation Style
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div
-                    onClick={() => setDiet('standard_gujarati')}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                      diet === 'standard_gujarati'
-                        ? 'border-emerald-600 bg-emerald-50/70 font-bold text-emerald-950'
-                        : 'border-stone-200 hover:border-stone-300'
-                    }`}
-                  >
-                    <div className="font-bold text-sm">Authentic Gujarati Home-Style</div>
-                    <div className="text-xs text-stone-500 mt-0.5">Mildly spiced, sweet-sour balance, fresh phulkas</div>
-                  </div>
-
-                  <div
-                    onClick={() => setDiet('jain_satvik')}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                      diet === 'jain_satvik'
-                        ? 'border-emerald-600 bg-emerald-50/70 font-bold text-emerald-950'
-                        : 'border-stone-200 hover:border-stone-300'
-                    }`}
-                  >
-                    <div className="font-bold text-sm">Jain Satvik (No Onion/Garlic/Roots)</div>
-                    <div className="text-xs text-stone-500 mt-0.5">Separate sanctified steam preparation counter</div>
-                  </div>
-
-                  <div
-                    onClick={() => setDiet('kathiyawadi')}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                      diet === 'kathiyawadi'
-                        ? 'border-emerald-600 bg-emerald-50/70 font-bold text-emerald-950'
-                        : 'border-stone-200 hover:border-stone-300'
-                    }`}
-                  >
-                    <div className="font-bold text-sm">Kathiyawadi / Saurashtra Touch</div>
-                    <div className="text-xs text-stone-500 mt-0.5">Garlic chutney, ringna no olo & sev tameta</div>
-                  </div>
-
-                  <div
-                    onClick={() => setDiet('low_oil_fit')}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                      diet === 'low_oil_fit'
-                        ? 'border-emerald-600 bg-emerald-50/70 font-bold text-emerald-950'
-                        : 'border-stone-200 hover:border-stone-300'
-                    }`}
-                  >
-                    <div className="font-bold text-sm">Low-Oil Fit (Cold-Pressed)</div>
-                    <div className="text-xs text-stone-500 mt-0.5">Zero ghee on rotis, steamed veggies, high pulse protein</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Add-ons */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
-                  Complimentary & Daily Add-ons
-                </label>
-                <div className="space-y-2">
-                  <label className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
-                    <span className="text-sm font-medium text-stone-800">Fresh Churned Masala Chaas Daily</span>
-                    <input
-                      type="checkbox"
-                      checked={addons.chaasDaily}
-                      onChange={(e) => setAddons({ ...addons, chaasDaily: e.target.checked })}
-                      className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500"
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
-                    <span className="text-sm font-medium text-stone-800">Sunday Special Traditional Sweet (Sheera/Shrikhand)</span>
-                    <input
-                      type="checkbox"
-                      checked={addons.sweetSunday}
-                      onChange={(e) => setAddons({ ...addons, sweetSunday: e.target.checked })}
-                      className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500"
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
-                    <span className="text-sm font-medium text-stone-800">+2 Extra Phulka Rotis per meal (+₹10/meal)</span>
-                    <input
-                      type="checkbox"
-                      checked={addons.extraRoti}
-                      onChange={(e) => setAddons({ ...addons, extraRoti: e.target.checked })}
-                      className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500"
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: Delivery Location */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-emerald-700 shrink-0" />
-                <div className="text-xs text-emerald-900">
-                  <span className="font-bold">Gandhinagar Cluster Delivery:</span> Free doorstep delivery at scheduled shift/lecture break times.
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Select Gandhinagar Area / Sector</label>
-                <select
-                  value={selectedAreaIndex}
-                  onChange={(e) => setSelectedAreaIndex(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                >
-                  {GANDHINAGAR_AREAS.map((a, i) => (
-                    <option key={i} value={i}>
-                      {a.area} ({a.sector}) - Pincode: {a.pincode}
-                    </option>
-                  ))}
-                </select>
-                <div className="text-xs text-stone-500 mt-1 flex items-center justify-between">
-                  <span>Assigned: {currentArea.cluster}</span>
-                  <span className="text-emerald-700 font-semibold">
-                    Est. Slot: {slot === 'lunch' ? currentArea.lunchSlot : currentArea.dinnerSlot}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Building / PG / House Address</label>
-                <input
-                  type="text"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  placeholder="e.g. Room 402, Shivalik Elite PG, Near Reliance Circle"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">WhatsApp Phone Number</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Delivery Notes / Landmark</label>
-                <input
-                  type="text"
-                  value={specialInstructions}
-                  onChange={(e) => setSpecialInstructions(e.target.value)}
-                  placeholder="e.g. Leave at security desk or ring bell twice"
-                  className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200">
-                <div className="flex items-center justify-between text-xs text-stone-600 mb-1">
-                  <span>Plan Total ({activePlanObj.name}):</span>
-                  <span className="font-bold text-stone-900">₹{activePlanObj.totalPrice}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-stone-600 mb-1">
-                  <span>Doorstep Delivery:</span>
-                  <span className="font-bold text-emerald-700">FREE (Gandhinagar Cluster)</span>
-                </div>
-                <div className="flex items-center justify-between text-sm font-extrabold text-stone-900 pt-2 border-t border-stone-200">
-                  <span>Amount to Activate:</span>
-                  <span className="text-[#107048] text-base">₹{activePlanObj.totalPrice}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer actions */}
-        <div className="bg-stone-50 px-6 py-4 border-t border-stone-200 flex items-center justify-between">
-          {step > 1 ? (
-            <button
-              onClick={() => setStep(step - 1)}
-              className="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 text-sm font-semibold hover:bg-stone-100 flex items-center gap-1.5"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsSubscribeModalOpen(false)}
-              className="px-4 py-2 rounded-xl text-stone-500 text-sm font-semibold hover:text-stone-800"
-            >
-              Cancel
-            </button>
-          )}
-
-          <button
-            onClick={handleNext}
-            className="px-6 py-2.5 rounded-xl bg-[#107048] hover:bg-[#0A4E32] text-white text-sm font-bold shadow-md shadow-emerald-950/20 flex items-center gap-2 transition-all"
-          >
-            <span>{step === 3 ? 'Confirm & Start Routine' : 'Continue'}</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+        {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{error}</p>}
+        <div className="rounded-2xl bg-stone-50 p-4 text-xs text-stone-600"><p className="flex items-start gap-2"><ShieldCheck className="h-4 w-4 shrink-0 text-emerald-700" /><span><strong className="text-stone-900">No automatic charge.</strong> Operations first confirms serviceability, dates and price. Your plan becomes active only after verified payment.</span></p></div>
+        <button type="button" disabled={busy} onClick={() => void submit()} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#0D6E44] px-5 font-black text-white shadow-lg disabled:opacity-50">{busy ? 'Saving request…' : <><CheckCircle2 className="h-5 w-5" />Request {plans[planCode].name}</>}</button>
       </div>
     </div>
-  );
+  </div>;
 };

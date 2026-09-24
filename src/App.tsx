@@ -27,6 +27,7 @@ if (Capacitor.isNativePlatform()) document.documentElement.classList.add('native
 const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then((module) => ({ default: module.HowItWorksPage })));
 const TodaysMenuPage = React.lazy(() => import('./pages/TodaysMenuPage').then((module) => ({ default: module.TodaysMenuPage })));
 const OrderOncePage = React.lazy(() => import('./pages/OrderOncePage').then((module) => ({ default: module.OrderOncePage })));
+const MealPlansPage = React.lazy(() => import('./pages/MealPlansPage').then((module) => ({ default: module.MealPlansPage })));
 const WhyUsPage = React.lazy(() => import('./pages/WhyUsPage').then((module) => ({ default: module.WhyUsPage })));
 const GandhinagarCoveragePage = React.lazy(() => import('./pages/GandhinagarCoveragePage').then((module) => ({ default: module.GandhinagarCoveragePage })));
 const StudentsPage = React.lazy(() => import('./pages/StudentsPage').then((module) => ({ default: module.StudentsPage })));
@@ -46,6 +47,7 @@ const AreaCheckerModal = React.lazy(() => import('./components/modals/AreaChecke
 const LocationSelectorModal = React.lazy(() => import('./components/modals/LocationSelectorModal').then((module) => ({ default: module.LocationSelectorModal })));
 const LegalModal = React.lazy(() => import('./components/modals/LegalModal').then((module) => ({ default: module.LegalModal })));
 const AuthModal = React.lazy(() => import('./components/modals/AuthModal').then((module) => ({ default: module.AuthModal })));
+const SubscribeModal = React.lazy(() => import('./components/modals/SubscribeModal').then((module) => ({ default: module.SubscribeModal })));
 
 const PageLoader = () => <CustomerPageSkeleton />;
 
@@ -111,6 +113,7 @@ const MainContent: React.FC = () => {
   const {
     activeTab,
     isOrderOnceModalOpen,
+    isSubscribeModalOpen,
     isTraceabilityModalOpen,
     isCorporateModalOpen,
     isFeedbackModalOpen,
@@ -139,7 +142,8 @@ const MainContent: React.FC = () => {
       case 'how_it_works':
         return <HowItWorksPage />;
       case 'meal_plans':
-        return <OrderOncePage />;
+      case 'my_subscription':
+        return <MealPlansPage />;
       case 'todays_menu':
         return <TodaysMenuPage />;
       case 'order_once':
@@ -182,6 +186,7 @@ const MainContent: React.FC = () => {
 
       <React.Suspense fallback={null}>
         {isOrderOnceModalOpen && <OrderOnceModal />}
+        {isSubscribeModalOpen && <SubscribeModal />}
         {isTraceabilityModalOpen && <TraceabilityModal />}
         {isCorporateModalOpen && <CorporateEnquiryModal />}
         {isFeedbackModalOpen && <FeedbackModal />}

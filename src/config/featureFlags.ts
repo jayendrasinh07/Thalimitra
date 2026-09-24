@@ -1,1 +1,1 @@
-export const SUBSCRIPTIONS_ENABLED = false;
+export const SUBSCRIPTIONS_ENABLED = true;
