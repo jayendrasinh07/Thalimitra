@@ -5,10 +5,6 @@ import {
   Lock, 
   User, 
   Phone, 
-  GraduationCap, 
-  Briefcase, 
-  Home, 
-  Building2, 
   ArrowRight, 
   Loader2, 
   CheckCircle2, 
@@ -17,7 +13,6 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { CustomerSegment } from '../../types';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { authService } from '../../services/authService';
 import { getPasswordPolicyError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
@@ -38,7 +33,6 @@ export const AuthModal: React.FC = () => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [segment, setSegment] = useState<CustomerSegment>('worker');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -77,7 +71,7 @@ export const AuthModal: React.FC = () => {
           return;
         }
 
-        const { error } = await signUpUser(email, password, fullName, phone, segment);
+        const { error } = await signUpUser(email, password, fullName, phone);
         if (error) {
           setErrorMessage(error.message || 'Could not complete registration.');
           return;
@@ -112,13 +106,6 @@ export const AuthModal: React.FC = () => {
       ? 'If this email has authorized Operations access, a secure reset link has been sent.'
       : 'If this email was registered as a customer, a secure reset link has been sent.');
   };
-
-  const segments: { id: CustomerSegment; label: string; icon: React.ReactNode; desc: string }[] = [
-    { id: 'worker', label: 'Office / Tech', icon: <Briefcase className="w-4 h-4" />, desc: 'Infocity & GIFT City' },
-    { id: 'student', label: 'Student / PG', icon: <GraduationCap className="w-4 h-4" />, desc: 'PDPU, DA-IICT, NIFT' },
-    { id: 'family', label: 'Family / Home', icon: <Home className="w-4 h-4" />, desc: 'Sectors 1–30' },
-    { id: 'corporate', label: 'Corporate', icon: <Building2 className="w-4 h-4" />, desc: 'Bulk / Team Meals' }
-  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm animate-fadeIn select-none">
@@ -224,29 +211,6 @@ export const AuthModal: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1.5">I am ordering as</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {segments.map((seg) => (
-                    <button
-                      key={seg.id}
-                      type="button"
-                      onClick={() => setSegment(seg.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                        segment === seg.id 
-                          ? 'border-[#0D6E44] bg-emerald-50 text-[#0D6E44] ring-1 ring-[#0D6E44]' 
-                          : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 font-bold text-xs">
-                        {seg.icon}
-                        <span>{seg.label}</span>
-                      </div>
-                      <span className="text-[10px] text-stone-500 mt-1">{seg.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </>
           )}
 
