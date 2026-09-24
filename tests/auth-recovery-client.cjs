@@ -3,11 +3,17 @@ const { stripTypeScriptTypes } = require('node:module');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
+const customerRecoveryFunction = readFileSync('supabase/functions/request-customer-password-reset/index.ts', 'utf8');
+assert.match(customerRecoveryFunction, /auth\.admin\.getUserById\(profile\.id\)/);
+assert.match(customerRecoveryFunction, /roles\.has\("customer"\)/);
+assert.match(customerRecoveryFunction, /\["admin", "kitchen", "delivery", "corporate"\]/);
+assert.match(customerRecoveryFunction, /return accepted\(origin\)/);
+
 const source = readFileSync('src/services/authService.ts', 'utf8')
   .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '')
   .replace(/export /g, '');
 
-function serviceFor(auth, href, native = false) {
+function serviceFor(auth, href, native = false, functions = { invoke: async () => ({ error: null }) }) {
   const location = { href };
   const history = { replaced: null, replaceState(_state, _title, path) { this.replaced = path; } };
   const result = vm.runInNewContext(
@@ -19,7 +25,7 @@ function serviceFor(auth, href, native = false) {
       console,
       window: { location, history },
       isSupabaseConfigured: () => true,
-      getSupabaseClient: () => ({ auth }),
+      getSupabaseClient: () => ({ auth, functions }),
       Capacitor: { isNativePlatform: () => native },
     },
   );
@@ -27,6 +33,16 @@ function serviceFor(auth, href, native = false) {
 }
 
 (async () => {
+  let invoked;
+  const customerReset = serviceFor({}, 'https://thalimitra.com/', false, { invoke: async (name, options) => { invoked = { name, options }; return { error: null }; } });
+  assert.equal((await customerReset.authService.requestPasswordReset('customer@example.com', 'customer')).error, null);
+  assert.deepEqual(JSON.parse(JSON.stringify(invoked)), { name: 'request-customer-password-reset', options: { body: { email: 'customer@example.com' } } });
+
+  let operationsReset;
+  const operations = serviceFor({ resetPasswordForEmail: async (email, options) => { operationsReset = { email, options }; return { error: null }; } }, 'https://ops.thalimitra.com/');
+  assert.equal((await operations.authService.requestPasswordReset('staff@example.com', 'operations')).error, null);
+  assert.deepEqual(JSON.parse(JSON.stringify(operationsReset)), { email: 'staff@example.com', options: { redirectTo: 'https://ops.thalimitra.com/reset-password' } });
+
   const active = serviceFor({ getSession: async () => ({ data: { session: { user: { id: 'u' } } }, error: null }) }, 'https://thalimitra.com/reset-password#access_token=secret');
   assert.equal((await active.authService.preparePasswordRecovery()).ready, true);
   assert.equal(active.history.replaced, '/reset-password');

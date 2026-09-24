@@ -9,6 +9,7 @@ const plans: Record<SubscriptionPlanCode, { name: string; meals: number }> = {
   half_month_15: { name: '15-Meal Routine', meals: 15 },
   monthly_30: { name: '30-Meal Routine', meals: 30 },
 };
+const services: ServiceMealType[] = ['breakfast', 'lunch', 'dinner'];
 
 const todayInIndia = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -20,7 +21,7 @@ export const SubscribeModal: React.FC = () => {
   const initialPlan = selectedPlanForCheckout === 'weekly_7' || selectedPlanForCheckout === 'monthly_30'
     ? selectedPlanForCheckout : 'half_month_15';
   const [planCode, setPlanCode] = useState<SubscriptionPlanCode>(initialPlan);
-  const [mealType, setMealType] = useState<ServiceMealType>('lunch');
+  const [mealTypes, setMealTypes] = useState<ServiceMealType[]>(['lunch']);
   const serviceableAddresses = useMemo(() => savedAddresses.filter(address => address.isServiceable), [savedAddresses]);
   const [addressId, setAddressId] = useState('');
   const [startDate, setStartDate] = useState(todayInIndia());
@@ -31,6 +32,7 @@ export const SubscribeModal: React.FC = () => {
   useEffect(() => {
     if (!isSubscribeModalOpen) return;
     setPlanCode(initialPlan);
+    setMealTypes(['lunch']);
     setAddressId(serviceableAddresses.find(address => address.isDefault)?.id || serviceableAddresses[0]?.id || '');
     setError(null);
   }, [isSubscribeModalOpen, initialPlan, serviceableAddresses]);
@@ -46,7 +48,7 @@ export const SubscribeModal: React.FC = () => {
     if (!addressId) { setError('Add a saved serviceable delivery address first.'); return; }
     setBusy(true); setError(null);
     try {
-      await subscriptionService.request({ planCode, mealType, addressId, preferredStartDate: startDate, note });
+      await subscriptionService.request({ planCode, mealTypes, addressId, preferredStartDate: startDate, note });
       window.dispatchEvent(new Event('thalimitra:subscriptions-updated'));
       setIsSubscribeModalOpen(false);
       showToast('Meal plan request saved', 'Operations will verify the schedule, service area and final price before payment.', 'success');
@@ -65,7 +67,7 @@ export const SubscribeModal: React.FC = () => {
       <div className="space-y-5 p-5 sm:p-6">
         <fieldset><legend className="text-sm font-black text-stone-900">Choose a routine</legend><div className="mt-2 grid grid-cols-3 gap-2">{(Object.entries(plans) as [SubscriptionPlanCode, { name: string; meals: number }][]).map(([code, plan]) => <button key={code} type="button" onClick={() => setPlanCode(code)} className={`min-h-20 rounded-2xl border p-3 text-left ${planCode === code ? 'border-emerald-700 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-700' : 'border-stone-200 bg-stone-50 text-stone-700'}`}><span className="block text-lg font-black">{plan.meals}</span><span className="text-xs font-bold">meals</span></button>)}</div></fieldset>
 
-        <fieldset><legend className="text-sm font-black text-stone-900">Preferred service</legend><div className="mt-2 grid grid-cols-3 gap-2">{(['breakfast','lunch','dinner'] as ServiceMealType[]).map(type => <button key={type} type="button" onClick={() => setMealType(type)} className={`min-h-12 rounded-xl border text-sm font-bold capitalize ${mealType === type ? 'border-emerald-700 bg-emerald-50 text-emerald-900' : 'border-stone-200 text-stone-600'}`}>{type}</button>)}</div></fieldset>
+        <fieldset><legend className="text-sm font-black text-stone-900">Which meals do you need?</legend><p className="mt-1 text-xs text-stone-500">Select one, two, or all three services. Your meal credits can be used across the selected services.</p><div className="mt-3 grid grid-cols-3 gap-2">{services.map(type => { const selected = mealTypes.includes(type); return <button key={type} type="button" aria-pressed={selected} onClick={() => setMealTypes(current => selected ? (current.length === 1 ? current : current.filter(item => item !== type)) : services.filter(item => current.includes(item) || item === type))} className={`flex min-h-14 items-center justify-center gap-1.5 rounded-xl border px-2 text-sm font-bold capitalize ${selected ? 'border-emerald-700 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-700' : 'border-stone-200 text-stone-600'}`}>{selected && <CheckCircle2 className="h-4 w-4" />}{type}</button>; })}</div></fieldset>
 
         <label className="block text-sm font-black text-stone-900">Preferred start date<div className="relative mt-2"><CalendarDays className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-emerald-700" /><input type="date" min={todayInIndia()} value={startDate} onChange={event => setStartDate(event.target.value)} className="min-h-12 w-full rounded-xl border border-stone-200 pl-11 pr-3 text-sm font-bold" /></div></label>
 

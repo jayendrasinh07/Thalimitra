@@ -19,6 +19,7 @@ const customization = read('src/components/order/Step3Customization.tsx');
 const publicMenu = read('src/components/public/TodaysMenuSection.tsx');
 const homeMenu = read('src/components/public/HomeMealSelector.tsx');
 const availabilityEngine = read('src/services/availabilityEngine.ts');
+const config = read('src/data/config.ts');
 
 assert.match(flags, /SUBSCRIPTIONS_ENABLED\s*=\s*true/);
 assert.match(app, /import\('\.\/components\/modals\/SubscribeModal'\)/);
@@ -51,9 +52,12 @@ for (const [id, tab] of [
 for (const tab of ['home', 'todays_menu', 'how_it_works', 'quality_standards', 'why_us', 'students', 'workers', 'corporate', 'coverage', 'contact']) {
   assert.match(footer, new RegExp(`handleNav\\('${tab}'\\)`));
 }
-for (const tab of ['home', 'todays_menu', 'order_history', 'customer_dashboard']) {
+for (const tab of ['home', 'todays_menu', 'meal_plans', 'order_history', 'customer_dashboard']) {
   assert.match(nativeNavigation, new RegExp(`id: '${tab}'`));
 }
+assert.match(context, /This Operations account can sign in only at ops\.thalimitra\.com/);
+assert.match(context, /roles\.includes\('customer'\)\s*&&\s*!hasOperationsRole/);
+assert.match(config, /connect\.vriddhibusiness@gmail\.com/);
 assert.match(nativeNavigation, /activeTab === 'order_once'.*thalimitra:native-back/s);
 assert.match(ops, /role === 'kitchen' \|\| role === 'admin'/);
 assert.match(ops, /<KitchenMfaGate/);

@@ -14,7 +14,7 @@ export const BRAND_CONFIG = {
   tagline: "Roz ka khana. Sahi khana.",
   subTagline: "Fresh home-style meals in Gandhinagar",
   location: "Gandhinagar, Gujarat, India",
-  email: "parmarjayendrasinh41@gmail.com",
+  email: "connect.vriddhibusiness@gmail.com",
   fssaiNumber: "Licence details will be published after verification",
   heroHeadline: "Roz ka khana. Sahi khana.",
   heroSubtitle: "Fresh, home-style meals for students, workers and professionals in Gandhinagar — without the daily hassle of outside food.",

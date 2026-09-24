@@ -1,9 +1,10 @@
-import { ArrowLeft, ClipboardList, House, MapPin, Menu as MenuIcon, UserRound } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ClipboardList, House, MapPin, Menu as MenuIcon, UserRound } from 'lucide-react';
 import { useApp, type ActiveTab } from '../../context/AppContext';
 
 const tabs: Array<{ id: ActiveTab; label: string; icon: typeof House }> = [
   { id: 'home', label: 'Home', icon: House },
   { id: 'todays_menu', label: 'Menu', icon: MenuIcon },
+  { id: 'meal_plans', label: 'Plans', icon: CalendarDays },
   { id: 'order_history', label: 'Orders', icon: ClipboardList },
   { id: 'customer_dashboard', label: 'Account', icon: UserRound },
 ];
@@ -42,7 +43,7 @@ export const NativeNavigation = () => {
       </div>
     </header>
     {isPrimary && <nav aria-label="Main app navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.07)] backdrop-blur-md">
-      <div className="mx-auto grid max-w-2xl grid-cols-4">
+      <div className="mx-auto grid max-w-2xl grid-cols-5">
         {tabs.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => navigate(id)}
           aria-current={activeTab === id ? 'page' : undefined}
           className={`pressable flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-bold transition-colors duration-200 ${activeTab === id ? 'bg-emerald-50 text-[#0D6E44]' : 'text-stone-500'}`}>

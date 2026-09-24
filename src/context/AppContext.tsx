@@ -310,7 +310,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Supabase Auth & Profile State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<AuthProfile | null>(null);
-  const [userRolesList, setUserRolesList] = useState<UserRoleType[]>(['customer']);
+  const [userRolesList, setUserRolesList] = useState<UserRoleType[]>([]);
   const isSupabaseConnected = isSupabaseConfigured();
 
 
@@ -330,8 +330,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(user);
     if(!user)return;
     try {
-      const [profile,roles,addresses,orders]=await Promise.all([authService.getProfile(user.id),authService.getUserRoles(user.id),addressService.getUserAddresses(user.id),orderService.getUserOrders(user.id)]);
-      if(generation!==authGeneration.current)return;
+      const roles = await authService.getUserRoles(user.id);
+      if (generation !== authGeneration.current) return;
+      const hasOperationsRole = roles.some(role => ['admin', 'kitchen', 'delivery', 'corporate'].includes(role));
+      const surfaceAllowed = isOpsBuild
+        ? roles.some(role => role === 'admin' || role === 'kitchen')
+        : roles.includes('customer') && !hasOperationsRole;
+      if (!surfaceAllowed) {
+        await authService.signOut();
+        if (generation === authGeneration.current) {
+          authIdentity.current = null;
+          setCurrentUser(null);
+          clearCustomerData();
+        }
+        return;
+      }
+      const [profile, addresses, orders] = await Promise.all([
+        authService.getProfile(user.id),
+        addressService.getUserAddresses(user.id),
+        orderService.getUserOrders(user.id)
+      ]);
+      if (generation !== authGeneration.current) return;
       setUserProfile(profile);setUserRolesList(roles);setUserRole(roles.includes('admin')?'admin':roles.includes('kitchen')?'kitchen_lead':roles.includes('delivery')?'delivery_fleet':roles.includes('corporate')?'corporate_lead':'customer');
       setSavedAddresses(addresses);setOneTimeOrders(orders);
       const address=addresses.find(a=>a.isDefault)||addresses[0]||EMPTY_DELIVERY_ADDRESS;
@@ -371,7 +390,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const signInUser = async (email: string, password: string) => {
     const res = await authService.signIn(email, password);
-    if (!res.error) {
+    if (!res.error && res.user) {
+      const roles = await authService.getUserRoles(res.user.id);
+      const hasOperationsRole = roles.some(role => ['admin', 'kitchen', 'delivery', 'corporate'].includes(role));
+      const surfaceAllowed = isOpsBuild
+        ? roles.some(role => role === 'admin' || role === 'kitchen')
+        : roles.includes('customer') && !hasOperationsRole;
+      if (!surfaceAllowed) {
+        await authService.signOut();
+        clearCustomerData();
+        setCurrentUser(null);
+        return {
+          ...res,
+          user: null,
+          session: null,
+          error: new Error(isOpsBuild
+            ? 'Use an authorized Operations account.'
+            : 'This Operations account can sign in only at ops.thalimitra.com.')
+        };
+      }
       await refreshUserProfile();
     }
     return res;

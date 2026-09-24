@@ -12,6 +12,7 @@ export interface MealSubscription {
   total_meals: number;
   remaining_meals: number;
   meal_type: ServiceMealType;
+  meal_types: ServiceMealType[];
   preferred_start_date: string;
   status: SubscriptionStatus;
   payment_status: SubscriptionPaymentStatus;
@@ -55,6 +56,8 @@ const parseSubscription = (value: any, managed = false): MealSubscription | Mana
   if (!value || typeof value.id !== 'string' || !plans.includes(value.plan_code)
     || typeof value.plan_name !== 'string' || !Number.isInteger(Number(value.total_meals))
     || !Number.isInteger(Number(value.remaining_meals)) || !mealTypes.includes(value.meal_type)
+    || !Array.isArray(value.meal_types) || value.meal_types.length === 0
+    || value.meal_types.some((mealType: unknown) => !mealTypes.includes(mealType as ServiceMealType))
     || !statuses.includes(value.status) || !payments.includes(value.payment_status)
     || typeof value.preferred_start_date !== 'string' || typeof value.created_at !== 'string'
     || typeof value.updated_at !== 'string' || (value.quoted_total != null && !Number.isFinite(Number(value.quoted_total)))
@@ -81,10 +84,10 @@ export const subscriptionService = {
     if (!Array.isArray(data)) throw new SubscriptionError('INVALID_RESPONSE');
     return data.map(value => parseSubscription(value) as MealSubscription);
   },
-  async request(input: { planCode: SubscriptionPlanCode; mealType: ServiceMealType; addressId: string; preferredStartDate: string; note?: string; }) {
+  async request(input: { planCode: SubscriptionPlanCode; mealTypes: ServiceMealType[]; addressId: string; preferredStartDate: string; note?: string; }) {
     const data = await rpc('request_meal_subscription', {
       p_plan_code: input.planCode,
-      p_meal_type: input.mealType,
+      p_meal_types: input.mealTypes,
       p_address_id: input.addressId,
       p_preferred_start_date: input.preferredStartDate,
       p_customer_note: input.note?.trim() || null,

@@ -81,16 +81,17 @@ export const authService = {
     }
   },
 
-  async requestPasswordReset(email: string): Promise<{ error: Error | null }> {
+  async requestPasswordReset(email: string, scope: 'customer' | 'operations' = 'customer'): Promise<{ error: Error | null }> {
     if (!isSupabaseConfigured()) return { error: new Error('Password recovery is currently unavailable.') };
 
     try {
       const client = getSupabaseClient();
-      const { error } = await client.auth.resetPasswordForEmail(email, {
-        redirectTo: Capacitor.isNativePlatform()
-          ? 'https://thalimitra.com/reset-password'
-          : `${window.location.origin}/reset-password`
-      });
+      const redirectTo = scope === 'operations'
+        ? 'https://ops.thalimitra.com/reset-password'
+        : 'https://thalimitra.com/reset-password';
+      const { error } = scope === 'operations'
+        ? await client.auth.resetPasswordForEmail(email, { redirectTo })
+        : await client.functions.invoke('request-customer-password-reset', { body: { email } });
       if (error) throw error;
       return { error: null };
     } catch (err: any) {

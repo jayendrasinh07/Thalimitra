@@ -102,13 +102,15 @@ export const AuthModal: React.FC = () => {
     }
 
     setLoading(true);
-    const { error } = await authService.requestPasswordReset(normalizedEmail);
+    const { error } = await authService.requestPasswordReset(normalizedEmail, isKitchenSignIn ? 'operations' : 'customer');
     setLoading(false);
     if (error) {
       setErrorMessage(error.message || 'Could not send the reset link. Please try again.');
       return;
     }
-    setInfoMessage('If this email has a Thalimitra account, a secure reset link has been sent.');
+    setInfoMessage(isKitchenSignIn
+      ? 'If this email has authorized Operations access, a secure reset link has been sent.'
+      : 'If this email was registered as a customer, a secure reset link has been sent.');
   };
 
   const segments: { id: CustomerSegment; label: string; icon: React.ReactNode; desc: string }[] = [
