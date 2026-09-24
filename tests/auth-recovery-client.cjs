@@ -44,6 +44,23 @@ function serviceFor(auth, href, native = false, functions = { invoke: async () =
   const immediateSignup = serviceFor({ signUp: async () => ({ data: { user: { id: 'new-user' }, session: { access_token: 'token' } }, error: null }) }, 'https://thalimitra.com/');
   assert.equal((await immediateSignup.authService.signUp('new@example.com', 'StrongPassword1!', 'New Customer', '9876543210')).needsEmailConfirmation, false);
 
+  let verificationPayload;
+  let resendPayload;
+  const emailOtp = serviceFor({
+    verifyOtp: async payload => {
+      verificationPayload = payload;
+      return { data: { user: { id: 'new-user' }, session: { access_token: 'token' } }, error: null };
+    },
+    resend: async payload => { resendPayload = payload; return { error: null }; },
+  }, 'https://thalimitra.com/');
+  const verified = await emailOtp.authService.verifySignupEmailOtp(' NEW@example.com ', ' 123456 ');
+  assert.equal(verified.user.id, 'new-user');
+  assert.deepEqual(JSON.parse(JSON.stringify(verificationPayload)), { email: 'new@example.com', token: '123456', type: 'email' });
+  assert.equal((await emailOtp.authService.resendSignupEmail(' NEW@example.com ')).error, null);
+  assert.deepEqual(JSON.parse(JSON.stringify(resendPayload)), { type: 'signup', email: 'new@example.com' });
+  const invalidOtp = serviceFor({ verifyOtp: async () => ({ data: { user: null, session: null }, error: new Error('invalid code') }) }, 'https://thalimitra.com/');
+  assert.match((await invalidOtp.authService.verifySignupEmailOtp('new@example.com', '000000')).error.message, /invalid code/);
+
   let invoked;
   const customerReset = serviceFor({}, 'https://thalimitra.com/', false, { invoke: async (name, options) => { invoked = { name, options }; return { error: null }; } });
   assert.equal((await customerReset.authService.requestPasswordReset('customer@example.com', 'customer')).error, null);

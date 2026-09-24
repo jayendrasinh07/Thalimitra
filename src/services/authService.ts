@@ -61,6 +61,31 @@ export const authService = {
     }
   },
 
+  async verifySignupEmailOtp(email: string, token: string): Promise<{ user: User | null; session: Session | null; error: Error | null }> {
+    if (!isSupabaseConfigured()) return { user: null, session: null, error: new Error('Email verification is currently unavailable.') };
+    try {
+      const { data, error } = await getSupabaseClient().auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: token.trim(),
+        type: 'email',
+      });
+      if (error) throw error;
+      return { user: data.user, session: data.session, error: null };
+    } catch (error: any) {
+      return { user: null, session: null, error };
+    }
+  },
+
+  async resendSignupEmail(email: string): Promise<{ error: Error | null }> {
+    if (!isSupabaseConfigured()) return { error: new Error('Email verification is currently unavailable.') };
+    try {
+      const { error } = await getSupabaseClient().auth.resend({ type: 'signup', email: email.trim().toLowerCase() });
+      return { error };
+    } catch (error: any) {
+      return { error };
+    }
+  },
+
   /**
    * Signs in user with Email and Password
    */

@@ -23,16 +23,19 @@ export const AuthModal: React.FC = () => {
     setIsAuthModalOpen, 
     signInUser, 
     signUpUser, 
+    verifySignUpOtp,
     showToast,
   } = useApp();
   const isKitchenSignIn = (import.meta as any).env?.VITE_APP_TARGET === 'ops';
+  const emailOtpEnabled = !isKitchenSignIn && (import.meta as any).env?.VITE_CUSTOMER_EMAIL_OTP_ENABLED === 'true';
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'verify'>('signin');
   const isSignIn = isKitchenSignIn || mode === 'signin';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -45,7 +48,20 @@ export const AuthModal: React.FC = () => {
     setLoading(true);
 
     try {
-      if (isSignIn) {
+      if (mode === 'verify' && emailOtpEnabled) {
+        if (!/^\d{6}$/.test(otp)) {
+          setErrorMessage('Enter the 6-digit code from your email.');
+          return;
+        }
+        const { error } = await verifySignUpOtp(email, otp);
+        if (error) {
+          setErrorMessage(error.message || 'This code could not be verified. Check it and try again.');
+          return;
+        }
+        setOtp('');
+        showToast('Email verified', 'Your Thalimitra account is ready.', 'success');
+        setIsAuthModalOpen(false);
+      } else if (isSignIn) {
         const { error } = await signInUser(email, password);
         if (error) {
           setErrorMessage(error.message || 'Invalid email or password.');
@@ -78,8 +94,10 @@ export const AuthModal: React.FC = () => {
         }
         if (needsEmailConfirmation) {
           setPassword('');
-          setMode('signin');
-          setInfoMessage('Check your email for the Thalimitra confirmation link. Open it, then return here and sign in. There is no code to enter in the app. If the email is missing, check Spam or Promotions.');
+          setMode(emailOtpEnabled ? 'verify' : 'signin');
+          setInfoMessage(emailOtpEnabled
+            ? 'Enter the 6-digit code sent to your email. Check Spam or Promotions if you cannot find it.'
+            : 'Check your email for the Thalimitra confirmation link. Open it, then return here and sign in. There is no code to enter in the app. If the email is missing, check Spam or Promotions.');
           return;
         }
         showToast('Account Created!', 'Welcome to Thalimitra Gandhinagar. Your profile is ready.', 'success');
@@ -87,6 +105,22 @@ export const AuthModal: React.FC = () => {
       }
     } catch (err: any) {
       setErrorMessage(err?.message || 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendSignupEmail = async () => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+    setLoading(true);
+    try {
+      const { error } = await authService.resendSignupEmail(email);
+      if (error) {
+        setErrorMessage(error.message || 'Could not resend the code. Please try again later.');
+        return;
+      }
+      setInfoMessage('A new verification email was requested. Check your inbox and Spam or Promotions.');
     } finally {
       setLoading(false);
     }
@@ -133,18 +167,20 @@ export const AuthModal: React.FC = () => {
           </div>
 
           <h3 className="text-xl font-black tracking-tight">
-            {isKitchenSignIn ? 'Kitchen sign in' : mode === 'signin' ? 'Sign in to your account' : 'Create your Thalimitra account'}
+             {isKitchenSignIn ? 'Kitchen sign in' : mode === 'verify' ? 'Verify your email' : mode === 'signin' ? 'Sign in to your account' : 'Create your Thalimitra account'}
           </h3>
           <p className="text-xs text-stone-200 mt-1">
             {isKitchenSignIn
               ? 'Access menu planning and live order operations.'
-              : mode === 'signin'
+               : mode === 'verify'
+               ? 'One more step to secure your new account.'
+               : mode === 'signin'
               ? 'Access your saved addresses and orders.'
               : 'Daily fresh, hygienic home-style meals delivered to your doorstep.'}
           </p>
 
           {/* Mode Switcher Tabs */}
-          {!isKitchenSignIn && <div className="flex bg-black/20 p-1 rounded-xl mt-4">
+           {!isKitchenSignIn && mode !== 'verify' && <div className="flex bg-black/20 p-1 rounded-xl mt-4">
             <button
               type="button"
               onClick={() => { setMode('signin'); setErrorMessage(null); setInfoMessage(null); }}
@@ -185,7 +221,7 @@ export const AuthModal: React.FC = () => {
           )}
 
           {/* Sign Up Details */}
-          {!isSignIn && (
+           {mode === 'signup' && !isKitchenSignIn && (
             <>
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">Full Name</label>
@@ -228,6 +264,7 @@ export const AuthModal: React.FC = () => {
               <input
                 type="email"
                 required
+               readOnly={mode === 'verify'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
@@ -236,8 +273,8 @@ export const AuthModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Password */}
-          <div>
+           {/* Password */}
+           {mode !== 'verify' && <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold text-stone-700">Password</label>
               {isSignIn && (
@@ -265,7 +302,29 @@ export const AuthModal: React.FC = () => {
               />
             </div>
             {!isSignIn && <p className="mt-1 text-[11px] text-stone-500">{PASSWORD_REQUIREMENTS}</p>}
-          </div>
+          </div>}
+
+          {mode === 'verify' && emailOtpEnabled && (
+            <div>
+              <label htmlFor="signup-email-otp" className="block text-xs font-bold text-stone-700 mb-1">6-digit email code</label>
+              <input
+                id="signup-email-otp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                required
+                value={otp}
+                onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                className="w-full px-4 py-3 rounded-xl bg-white border border-stone-300 text-center tracking-[0.4em] text-lg font-bold text-stone-900 focus:ring-2 focus:ring-[#0D6E44] focus:border-transparent outline-none"
+              />
+              <button type="button" onClick={handleResendSignupEmail} disabled={loading} className="mt-2 text-xs font-semibold text-[#0D6E44] hover:underline disabled:opacity-60">
+                Resend verification email
+              </button>
+            </div>
+          )}
 
           {/* Submit CTA */}
           <button
@@ -276,15 +335,32 @@ export const AuthModal: React.FC = () => {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                <span>{isSignIn ? 'Signing in...' : 'Creating Account...'}</span>
+                 <span>{mode === 'verify' ? 'Verifying...' : isSignIn ? 'Signing in...' : 'Creating Account...'}</span>
               </>
             ) : (
               <>
-                <span>{isSignIn ? 'Sign In' : 'Complete Registration'}</span>
+                 <span>{mode === 'verify' ? 'Verify email' : isSignIn ? 'Sign In' : 'Complete Registration'}</span>
                 <ArrowRight className="w-4 h-4 text-amber-300" />
               </>
             )}
           </button>
+
+           {mode === 'signin' && emailOtpEnabled && (
+             <button type="button" onClick={() => {
+               if (!email.trim()) { setErrorMessage('Enter your email address first.'); return; }
+               setMode('verify');
+               setErrorMessage(null);
+               setInfoMessage('Enter the 6-digit code from your Thalimitra verification email.');
+             }} className="w-full text-xs font-semibold text-[#0D6E44] hover:underline">
+               Have a verification code?
+             </button>
+           )}
+
+           {mode === 'verify' && emailOtpEnabled && (
+             <button type="button" onClick={() => { setMode('signin'); setErrorMessage(null); setInfoMessage(null); }} className="w-full text-xs font-semibold text-stone-600 hover:text-[#0D6E44]">
+               Already verified? Sign in
+             </button>
+           )}
 
           {/* Privacy & Trust Badge */}
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-stone-400 pt-2">

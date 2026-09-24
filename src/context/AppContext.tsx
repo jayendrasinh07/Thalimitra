@@ -197,6 +197,7 @@ interface AppContextType {
   setIsAuthModalOpen: (open: boolean) => void;
   isSupabaseConnected: boolean;
   signInUser: (email: string, password: string) => Promise<{ error: Error | null }>;
+  verifySignUpOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
   signUpUser: (email: string, password: string, fullName: string, phone: string, segment?: CustomerSegmentType) => Promise<{ error: Error | null; needsEmailConfirmation: boolean }>;
   signOutUser: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
@@ -388,8 +389,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [refreshUserProfile]);
 
-  const signInUser = async (email: string, password: string) => {
-    const res = await authService.signIn(email, password);
+  const finishCustomerAuth = async (res: Awaited<ReturnType<typeof authService.signIn>>) => {
     if (!res.error && res.user) {
       const roles = await authService.getUserRoles(res.user.id);
       const hasOperationsRole = roles.some(role => ['admin', 'kitchen', 'delivery', 'corporate'].includes(role));
@@ -413,6 +413,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return res;
   };
+
+  const signInUser = async (email: string, password: string) =>
+    finishCustomerAuth(await authService.signIn(email, password));
+
+  const verifySignUpOtp = async (email: string, token: string) =>
+    finishCustomerAuth(await authService.verifySignupEmailOtp(email, token));
 
   const signUpUser = async (email: string, password: string, fullName: string, phone: string, segment: CustomerSegmentType = 'individual') => {
     const res = await authService.signUp(email, password, fullName, phone, segment);
@@ -1027,6 +1033,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsAuthModalOpen,
         isSupabaseConnected,
         signInUser,
+        verifySignUpOtp,
         signUpUser,
         signOutUser,
         refreshUserProfile,
