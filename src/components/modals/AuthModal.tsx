@@ -349,6 +349,7 @@ export const AuthModal: React.FC = () => {
              <button type="button" onClick={() => {
                if (!email.trim()) { setErrorMessage('Enter your email address first.'); return; }
                setMode('verify');
+               setPassword('');
                setErrorMessage(null);
                setInfoMessage('Enter the 6-digit code from your Thalimitra verification email.');
              }} className="w-full text-xs font-semibold text-[#0D6E44] hover:underline">
