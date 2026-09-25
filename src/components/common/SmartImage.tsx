@@ -69,7 +69,7 @@ export const SmartImage: React.FC<SmartImageProps> = ({
           </p>
           <div className="flex items-center gap-1 mt-1 text-[10px] text-[#107048] font-semibold">
             <Leaf className="w-3 h-3" />
-            <span>Roz ka khana. Sahi khana.</span>
+            <span>Khana jo roz apna lage.</span>
           </div>
         </div>
       ) : (

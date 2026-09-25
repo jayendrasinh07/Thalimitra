@@ -38,6 +38,7 @@ const QualityStandardsPage = React.lazy(() => import('./pages/QualityStandardsPa
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then((module) => ({ default: module.ContactPage })));
 const MealPreferencesPage = React.lazy(() => import('./pages/MealPreferencesPage').then((module) => ({ default: module.MealPreferencesPage })));
 const OrderHistoryPage = React.lazy(() => import('./pages/OrderHistoryPage').then((module) => ({ default: module.OrderHistoryPage })));
+const DeliveryAddressesPage = React.lazy(() => import('./pages/DeliveryAddressesPage').then((module) => ({ default: module.DeliveryAddressesPage })));
 const PasswordRecoveryPage = React.lazy(() => import('./pages/PasswordRecoveryPage').then((module) => ({ default: module.PasswordRecoveryPage })));
 const OrderOnceModal = React.lazy(() => import('./components/modals/OrderOnceModal').then((module) => ({ default: module.OrderOnceModal })));
 const TraceabilityModal = React.lazy(() => import('./components/modals/TraceabilityModal').then((module) => ({ default: module.TraceabilityModal })));
@@ -72,7 +73,7 @@ const AndroidBackHandler: React.FC = () => {
       if (isSubscribeModalOpen) return setIsSubscribeModalOpen(false);
       if (isLegalModalOpen) return setIsLegalModalOpen(false);
       if (activeTab === 'order_once') return window.dispatchEvent(new Event('thalimitra:native-back'));
-      if (activeTab === 'contact' || activeTab === 'coverage') return setActiveTab('customer_dashboard');
+      if (activeTab === 'contact' || activeTab === 'coverage' || activeTab === 'delivery_addresses') return setActiveTab('customer_dashboard');
       if (activeTab !== 'home') return setActiveTab('home');
       void CapacitorApp.exitApp();
     }).then(listener => {
@@ -175,6 +176,8 @@ const MainContent: React.FC = () => {
         return <MealPreferencesPage />;
       case 'order_history':
         return <OrderHistoryPage />;
+      case 'delivery_addresses':
+        return <DeliveryAddressesPage />;
       default:
         return <Home />;
     }

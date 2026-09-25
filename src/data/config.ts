@@ -11,12 +11,12 @@ import {
 
 export const BRAND_CONFIG = {
   name: "Thalimitra",
-  tagline: "Roz ka khana. Sahi khana.",
+  tagline: "Khana jo roz apna lage.",
   subTagline: "Fresh home-style meals in Gandhinagar",
   location: "Gandhinagar, Gujarat, India",
   email: "connect.vriddhibusiness@gmail.com",
   fssaiNumber: "Licence details will be published after verification",
-  heroHeadline: "Roz ka khana. Sahi khana.",
+  heroHeadline: "Khana jo roz apna lage.",
   heroSubtitle: "Fresh, home-style meals for students, workers and professionals in Gandhinagar — without the daily hassle of outside food.",
   vision: "Gandhinagar → Ahmedabad → Gujarat"
 };

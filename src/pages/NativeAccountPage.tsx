@@ -1,9 +1,10 @@
 import { ArrowRight, CalendarDays, CircleHelp, LogOut, MapPin, ShieldCheck, ShoppingBag, UserRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { getAddressCompactLine } from '../utils/addressDisplay';
 
 export const NativeAccountPage = () => {
-  const { currentUser, userProfile, savedAddresses, setActiveTab, setIsAuthModalOpen,
-    setIsLocationModalOpen, openLegalModal, signOutUser } = useApp();
+  const { currentUser, userProfile, savedAddresses, activeDeliveryAddress, isCustomerDataLoading, setActiveTab, setIsAuthModalOpen,
+    openLegalModal, signOutUser } = useApp();
   const name = userProfile?.fullName?.trim() || currentUser?.email?.split('@')[0] || 'Your account';
 
   return <div className="mx-auto max-w-2xl space-y-5 px-4 py-5">
@@ -18,7 +19,7 @@ export const NativeAccountPage = () => {
     <section aria-label="Your account" className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
       <AccountRow icon={ShoppingBag} label="My orders" detail="Status, help and past meals" onClick={() => setActiveTab('order_history')} />
       <AccountRow icon={CalendarDays} label="Meal plans" detail="Request a routine or track its approval" onClick={() => setActiveTab('meal_plans')} />
-      <AccountRow icon={MapPin} label="Delivery addresses" detail={currentUser ? `${savedAddresses.length} saved` : 'Choose your delivery location'} onClick={() => setIsLocationModalOpen(true)} />
+      <AccountRow icon={MapPin} label="Delivery addresses" detail={currentUser ? isCustomerDataLoading ? 'Loading your saved addresses…' : savedAddresses.length ? `${savedAddresses.length} saved · ${getAddressCompactLine(activeDeliveryAddress)}` : 'Add your first delivery address' : 'Choose your delivery location'} onClick={() => setActiveTab('delivery_addresses')} />
     </section>
 
     <section aria-label="Help and information" className="overflow-hidden rounded-3xl border border-stone-200 bg-white">

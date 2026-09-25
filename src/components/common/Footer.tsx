@@ -55,7 +55,7 @@ export const Footer: React.FC = () => {
                   Thali<span className="text-emerald-400">mitra</span>
                 </span>
                 <span className="text-xs text-stone-400 font-medium block mt-1">
-                  Roz ka khana. Sahi khana.
+                  Khana jo roz apna lage.
                 </span>
               </div>
             </div>

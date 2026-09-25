@@ -11,6 +11,7 @@ import {
   LogIn,
   LogOut
 } from 'lucide-react';
+import { getAddressCompactLine } from '../../utils/addressDisplay';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -46,13 +47,13 @@ export const Navbar: React.FC = () => {
     locationLabel = 'Detecting location...';
   } else if (centralLocation?.isAddressConfirmed && centralLocation.confirmedAddress) {
     const addr = centralLocation.confirmedAddress;
-    locationLabel = addr.label ? `${addr.label} • ${addr.sector || addr.area || 'Gandhinagar'}` : `${addr.sector || addr.area || 'Gandhinagar'}`;
+    locationLabel = addr.label ? `${addr.label} • ${getAddressCompactLine(addr)}` : getAddressCompactLine(addr);
     isGps = addr.source === 'gps';
   } else if (detectedLocation && !centralLocation?.isAddressConfirmed) {
     locationLabel = 'Location detected';
     isGps = true;
   } else if (activeDeliveryAddress && centralLocation?.isAddressConfirmed) {
-    locationLabel = `${activeDeliveryAddress.label} • ${activeDeliveryAddress.sector || activeDeliveryAddress.area || 'Gandhinagar'}`;
+    locationLabel = `${activeDeliveryAddress.label} • ${getAddressCompactLine(activeDeliveryAddress)}`;
     isGps = activeDeliveryAddress.source === 'gps';
   }
 
@@ -80,7 +81,7 @@ export const Navbar: React.FC = () => {
                   Thali<span className="text-[#0D6E44]">mitra</span>
                 </span>
                 <span className="text-[10px] sm:text-[11px] font-semibold text-stone-500 tracking-tight leading-tight mt-0.5 whitespace-nowrap hidden xs:inline-block">
-                  Roz ka khana. Sahi khana.
+                  Khana jo roz apna lage.
                 </span>
               </div>
             </button>

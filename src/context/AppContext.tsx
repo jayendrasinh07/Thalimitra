@@ -77,6 +77,7 @@ export type ActiveTab =
   | 'customer_dashboard'
   | 'my_subscription'
   | 'meal_preferences'
+  | 'delivery_addresses'
   | 'delivery_tracking'
   | 'order_history'
   | 'profile'
@@ -193,6 +194,7 @@ interface AppContextType {
   currentUser: User | null;
   userProfile: AuthProfile | null;
   userRolesList: UserRoleType[];
+  isCustomerDataLoading: boolean;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   isSupabaseConnected: boolean;
@@ -314,6 +316,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<AuthProfile | null>(null);
   const [userRolesList, setUserRolesList] = useState<UserRoleType[]>([]);
+  const [isCustomerDataLoading, setIsCustomerDataLoading] = useState(false);
   const isSupabaseConnected = isSupabaseConfigured();
 
 
@@ -327,11 +330,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   },[]);
   const refreshUserProfile = useCallback(async () => {
     const generation=++authGeneration.current;
-    const user=await authService.getCurrentUser();
+    let user: User | null;
+    try { user=await authService.getCurrentUser(); }
+    catch(error) { console.warn('Unable to refresh the signed-in account', error); return; }
     if(generation!==authGeneration.current)return;
     if(authIdentity.current!==user?.id){clearCustomerData();authIdentity.current=user?.id??null;}
     setCurrentUser(user);
-    if(!user)return;
+    if(!user){setIsCustomerDataLoading(false);return;}
+    setIsCustomerDataLoading(true);
     try {
       const roles = await authService.getUserRoles(user.id);
       if (generation !== authGeneration.current) return;
@@ -348,18 +354,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return;
       }
-      const [profile, addresses, orders] = await Promise.all([
+      const [profileResult, addressesResult, ordersResult] = await Promise.allSettled([
         authService.getProfile(user.id),
         addressService.getUserAddresses(user.id),
         orderService.getUserOrders(user.id)
       ]);
       if (generation !== authGeneration.current) return;
-      setUserProfile(profile);setUserRolesList(roles);setUserRole(roles.includes('admin')?'admin':roles.includes('kitchen')?'kitchen_lead':roles.includes('delivery')?'delivery_fleet':roles.includes('corporate')?'corporate_lead':'customer');
-      setSavedAddresses(addresses);setOneTimeOrders(orders);
-      const address=addresses.find(a=>a.isDefault)||addresses[0]||EMPTY_DELIVERY_ADDRESS;
-      setActiveDeliveryAddress(address);setDefaultAddressIdState(address.id);
-      setActiveTrackingOrder(prev=>prev?orders.find(o=>o.id===prev.id)??null:null);
-    } catch(error) { if(generation===authGeneration.current){clearCustomerData();setCurrentUser(user);console.error('Unable to load account data',error);} }
+      setUserRolesList(roles);setUserRole(roles.includes('admin')?'admin':roles.includes('kitchen')?'kitchen_lead':roles.includes('delivery')?'delivery_fleet':roles.includes('corporate')?'corporate_lead':'customer');
+      if(profileResult.status==='fulfilled')setUserProfile(profileResult.value);else console.warn('Unable to load profile',profileResult.reason);
+      if(ordersResult.status==='fulfilled'){
+        const orders=ordersResult.value;setOneTimeOrders(orders);setActiveTrackingOrder(prev=>prev?orders.find(o=>o.id===prev.id)??null:null);
+      }else console.warn('Unable to load orders',ordersResult.reason);
+      if(addressesResult.status==='fulfilled'){
+        const addresses=addressesResult.value;setSavedAddresses(addresses);
+        const address=addresses.find(a=>a.isDefault)||addresses[0]||EMPTY_DELIVERY_ADDRESS;
+        setActiveDeliveryAddress(address);setDefaultAddressIdState(address.id);
+        if(address.id)setCentralLocation(prev=>({...prev,isAddressConfirmed:true,confirmedAddress:address,selectedAddressId:address.id,source:address.source||'saved',latitude:address.latitude??prev.latitude,longitude:address.longitude??prev.longitude,accuracy:address.accuracy??prev.accuracy,city:address.city||'Gandhinagar',area:address.area,sector:address.sector||address.area,pincode:address.pincode,formattedAddress:address.addressLine1||address.addressLine||`${address.area}, ${address.city||'Gandhinagar'}`,deliveryZoneId:(address.zoneId||'zone_a_core') as any,deliveryFee:Number(address.deliveryFee||0),serviceable:address.isServiceable}));
+      }else console.warn('Unable to load saved addresses',addressesResult.reason);
+    } catch(error) { if(generation===authGeneration.current){setCurrentUser(user);console.error('Unable to load account data',error);} }
+    finally { if(generation===authGeneration.current)setIsCustomerDataLoading(false); }
   },[clearCustomerData]);
 
   useEffect(() => {
@@ -370,6 +383,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const timer=setInterval(refresh,15000);window.addEventListener('focus',refresh);
     return()=>{alive=false;unsubscribe();clearInterval(timer);window.removeEventListener('focus',refresh);};
   },[currentUser?.id]);
+
+  useEffect(() => {
+    if(!currentUser)return;
+    const refreshAccount=()=>{void refreshUserProfile();};
+    window.addEventListener('online',refreshAccount);
+    return()=>window.removeEventListener('online',refreshAccount);
+  },[currentUser?.id,refreshUserProfile]);
 
   // Auth Lifecycle Initializer
   useEffect(() => {
@@ -382,10 +402,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       if (event === 'SIGNED_OUT') authService.notePasswordRecovery(null);
       if (session?.user) {
+        setIsCustomerDataLoading(true);
         if(authIdentity.current!==session.user.id){++authGeneration.current;clearCustomerData();authIdentity.current=session.user.id;}
         setCurrentUser(session.user);
         setTimeout(() => { void refreshUserProfile(); }, 0);
       } else {
+        setIsCustomerDataLoading(false);
         ++authGeneration.current;authIdentity.current=null;setCurrentUser(null);clearCustomerData();
       }
     });
@@ -732,6 +754,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const addresses=await addressService.getUserAddresses(owner);
     if(authIdentity.current!==owner)throw new Error('Your account changed. Please retry.');
     setSavedAddresses(addresses);setActiveDeliveryAddress(saved);setDefaultAddressIdState(addresses.find(a=>a.isDefault)?.id??'');
+    setCentralLocation(prev=>({...prev,isAddressConfirmed:true,confirmedAddress:saved,selectedAddressId:saved.id,source:saved.source||'saved',latitude:saved.latitude??prev.latitude,longitude:saved.longitude??prev.longitude,accuracy:saved.accuracy??prev.accuracy,city:saved.city||'Gandhinagar',area:saved.area,sector:saved.sector||saved.area,pincode:saved.pincode,formattedAddress:saved.addressLine1||saved.addressLine||`${saved.area}, ${saved.city||'Gandhinagar'}`,deliveryZoneId:(saved.zoneId||'zone_a_core') as any,deliveryFee:Number(saved.deliveryFee||0),serviceable:saved.isServiceable}));
     showToast('Address Saved',saved.isServiceable?'Delivery coverage verified.':'This address is outside current delivery coverage.','info');return saved;
   },[currentUser]);
   const deleteDeliveryAddress = useCallback(async (id:string) => {
@@ -1038,6 +1061,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         userProfile,
         userRolesList,
+        isCustomerDataLoading,
         isAuthModalOpen,
         setIsAuthModalOpen,
         isSupabaseConnected,

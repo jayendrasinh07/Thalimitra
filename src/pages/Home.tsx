@@ -15,7 +15,7 @@ export const Home: React.FC = () => {
       {/* 0. Optional Compact Returning Customer Bar (only if authenticated customer) */}
       <HomeReturningUserBanner />
 
-      {/* 1. Hero: Roz ka khana. Sahi khana. */}
+      {/* 1. Hero: Khana jo roz apna lage. */}
       <HeroSection />
 
       {/* 2. Today's Meal: Aaj Thalimitra mein kya mil raha hai? */}

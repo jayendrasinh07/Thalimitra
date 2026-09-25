@@ -316,12 +316,16 @@ export const authService = {
 
     try {
       const client = getSupabaseClient();
+      const { data: { session }, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session) return null;
       const { data: { user }, error } = await client.auth.getUser();
-      if (error || !user) return null;
+      if (error) throw error;
+      if (!user) return null;
       return user;
     } catch (err) {
       console.warn('[Thalimitra Auth] Failed to fetch current user:', err);
-      return null;
+      throw err;
     }
   },
 
@@ -339,7 +343,8 @@ export const authService = {
         .eq('id', userId)
         .single();
 
-      if (error || !data) return null;
+      if (error) throw error;
+      if (!data) return null;
 
       const row = data as any;
       return {
@@ -354,7 +359,7 @@ export const authService = {
       };
     } catch (err) {
       console.warn('[Thalimitra Auth] Failed to fetch profile from Supabase:', err);
-      return null;
+      throw err;
     }
   },
 
@@ -371,14 +376,15 @@ export const authService = {
         .select('role')
         .eq('user_id', userId);
 
-      if (error || !data || data.length === 0) {
+      if (error) throw error;
+      if (!data || data.length === 0) {
         return [];
       }
 
       return (data as any[]).map((r) => r.role as UserRoleType);
     } catch (err) {
       console.warn('[Thalimitra Auth] Failed to fetch roles:', err);
-      return [];
+      throw err;
     }
   },
 

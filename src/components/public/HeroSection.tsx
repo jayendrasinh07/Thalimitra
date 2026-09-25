@@ -51,8 +51,8 @@ export const HeroSection: React.FC = () => {
 
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-stone-900 tracking-tight leading-[1.08]">
-              Roz ka khana. <br />
-              <span className="text-[#0D6E44]">Sahi khana.</span>
+              Khana jo roz <br />
+              <span className="text-[#0D6E44]">apna lage.</span>
             </h1>
 
             {/* Short supporting text */}
