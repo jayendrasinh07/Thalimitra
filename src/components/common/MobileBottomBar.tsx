@@ -5,9 +5,10 @@ import { ArrowRight, MapPin } from 'lucide-react';
 export const MobileBottomBar: React.FC = () => {
   const { activeTab, setActiveTab, setIsLocationModalOpen, isOrderOnceModalOpen, isSubscribeModalOpen } = useApp();
 
-  // Hide on order page, checkout modal, or customer dashboard to avoid UI collisions
+  // Hide where the screen already has its own primary action or navigation.
   if (
     activeTab === 'home' ||
+    activeTab === 'meal_plans' ||
     activeTab === 'order_once' || 
     activeTab === 'customer_dashboard' || 
     activeTab === 'admin_dashboard' ||

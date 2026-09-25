@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, Check, Clock3, RefreshCw, ShieldCheck, UtensilsCrossed } from 'lucide-react';
+import { ArrowRight, Clock3, RefreshCw, ShieldCheck, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { subscriptionService, type MealSubscription, type SubscriptionPlanCode } from '../services/subscriptionService';
 
-const plans: Array<{ code: SubscriptionPlanCode; meals: number; name: string; bestFor: string; benefits: string[]; popular?: boolean }> = [
-  { code: 'weekly_7', meals: 7, name: '7-Meal Routine', bestFor: 'Trying a predictable weekly routine', benefits: ['Choose one or more meal services', 'Serviceability checked before payment', 'Final price confirmed by Operations'] },
-  { code: 'half_month_15', meals: 15, name: '15-Meal Routine', bestFor: 'Students and busy work schedules', benefits: ['15 meal credits after activation', 'Preferred start date recorded', 'Pause support through Operations'], popular: true },
-  { code: 'monthly_30', meals: 30, name: '30-Meal Routine', bestFor: 'A regular monthly food routine', benefits: ['30 meal credits after activation', 'One verified delivery address', 'Status visible in your account'] },
+const plans: Array<{ code: SubscriptionPlanCode; meals: number; label: string; description: string }> = [
+  { code: 'weekly_7', meals: 7, label: 'A simple start', description: 'Try a shorter meal routine before planning more.' },
+  { code: 'half_month_15', meals: 15, label: 'A steady routine', description: 'Plan more meals around your work or study days.' },
+  { code: 'monthly_30', meals: 30, label: 'Plan further ahead', description: 'For a longer stretch of regular meals.' },
 ];
 
 const statusLabel: Record<MealSubscription['status'], string> = {
-  requested: 'Review pending', payment_pending: 'Payment pending', active: 'Active', paused: 'Paused', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Not approved',
+  requested: 'Under review', payment_pending: 'Awaiting payment', active: 'Active', paused: 'Paused', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Unavailable',
 };
 
 export const MealPlansPage: React.FC = () => {
@@ -43,28 +43,36 @@ export const MealPlansPage: React.FC = () => {
 
   const openRequest = mine.some(item => ['requested','payment_pending','active','paused'].includes(item.status));
 
-  return <div className="min-h-[80vh] bg-[#FAF8F5] py-8 sm:py-14">
-    <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
-      <section className="overflow-hidden rounded-3xl bg-[#0D6E44] p-6 text-white shadow-xl sm:p-10">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Regular meal routines</p>
-        <h1 className="mt-3 max-w-3xl text-3xl font-black leading-tight sm:text-5xl">Choose your routine. Pay only after we confirm it.</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-emerald-100 sm:text-base">Select a meal count, one or more services, and a start date. Operations checks your address, kitchen capacity and final amount before activation.</p>
-        <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold"><span className="rounded-full bg-white/10 px-3 py-2">No automatic charge</span><span className="rounded-full bg-white/10 px-3 py-2">Manual approval</span><span className="rounded-full bg-white/10 px-3 py-2">Trackable status</span></div>
+  return <div className="min-h-[80vh] bg-[#FAF8F5] py-5 sm:py-12">
+    <div className="mx-auto max-w-6xl space-y-7 px-4 sm:space-y-9 sm:px-6">
+      <section className="rounded-[28px] bg-[#0D6E44] px-5 py-7 text-white shadow-[0_14px_32px_rgba(13,110,68,0.12)] sm:px-10 sm:py-11">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-amber-200">Meal plans</p>
+        <h1 className="mt-3 max-w-3xl text-[29px] font-black leading-[1.12] tracking-tight sm:text-5xl">Plan ahead for everyday meals.</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/90 sm:mt-4 sm:text-base">Choose 7, 15 or 30 meals. Pick Breakfast, Lunch or Dinner in the next step. We confirm the schedule and final total before you pay.</p>
+        <p className="mt-5 border-t border-white/20 pt-4 text-xs font-semibold text-white/90">No payment to request a plan. You decide after seeing the quote.</p>
       </section>
 
-      {currentUser && <section className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-emerald-700">My meal plans</p><h2 className="mt-1 text-xl font-black text-stone-900">Requests and active plans</h2></div><button type="button" onClick={() => void load()} disabled={loading} className="grid h-10 w-10 place-items-center rounded-xl border border-stone-200 text-stone-600"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button></div>
+      {currentUser && <section id="my-meal-plans" className="scroll-mt-24 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-emerald-700">Your plans</p><h2 className="mt-1 text-xl font-black text-stone-900">Requests and active plans</h2></div><button type="button" onClick={() => void load()} disabled={loading} aria-label="Refresh meal plan status" className="grid h-10 w-10 place-items-center rounded-xl border border-stone-200 text-stone-600"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button></div>
         <div className="mt-4 space-y-3">{!loading && mine.length === 0 && <p className="rounded-2xl bg-stone-50 p-4 text-sm text-stone-500">You have no meal plan request yet.</p>}{mine.map(item => <article key={item.id} className="rounded-2xl border border-stone-200 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-black text-stone-900">{item.plan_name} · <span className="capitalize">{item.meal_types.join(' + ')}</span></h3><p className="mt-1 text-xs text-stone-500">Preferred start {new Date(`${item.preferred_start_date}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${item.status === 'active' ? 'bg-emerald-100 text-emerald-800' : item.status === 'payment_pending' ? 'bg-amber-100 text-amber-900' : 'bg-stone-100 text-stone-700'}`}>{statusLabel[item.status]}</span></div>
-          {item.quoted_total != null && <p className="mt-3 text-sm font-bold text-stone-700">Confirmed plan amount: <span className="text-emerald-800">₹{item.quoted_total.toLocaleString('en-IN')}</span> · Payment {item.payment_status}</p>}
+          {item.quoted_total != null && <p className="mt-3 text-sm font-bold text-stone-700">Quoted total: <span className="text-emerald-800">₹{item.quoted_total.toLocaleString('en-IN')}</span> · {item.payment_status === 'paid' ? 'Payment verified' : item.payment_status === 'refunded' ? 'Refunded' : 'Payment not yet verified'}</p>}
           {['requested','payment_pending'].includes(item.status) && <button type="button" onClick={() => void cancel(item.id)} disabled={busy === item.id} className="mt-3 min-h-10 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-50">{busy === item.id ? 'Cancelling…' : 'Cancel request'}</button>}
         </article>)}</div>
       </section>}
 
-      <section><div className="mb-5"><h2 className="text-2xl font-black text-stone-900">Select a routine</h2><p className="mt-1 text-sm text-stone-500">The final price depends on the current kitchen menu, service and delivery area.</p></div>
-        <div className="grid gap-5 lg:grid-cols-3">{plans.map(plan => <article key={plan.code} className={`relative flex flex-col rounded-3xl border bg-white p-6 shadow-sm ${plan.popular ? 'border-emerald-600 ring-2 ring-emerald-100' : 'border-stone-200'}`}>{plan.popular && <span className="absolute -top-3 left-6 rounded-full bg-amber-400 px-3 py-1 text-[10px] font-black uppercase text-stone-950">Balanced choice</span>}<div className="flex items-center justify-between"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-800"><UtensilsCrossed /></span><span className="text-3xl font-black text-stone-900">{plan.meals}<small className="ml-1 text-xs font-bold text-stone-500">meals</small></span></div><h3 className="mt-5 text-xl font-black text-stone-900">{plan.name}</h3><p className="mt-1 min-h-10 text-sm text-stone-500">{plan.bestFor}</p><ul className="mt-5 flex-1 space-y-3">{plan.benefits.map(item => <li key={item} className="flex gap-2 text-sm text-stone-700"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />{item}</li>)}</ul><button type="button" onClick={() => openCheckoutForPlan(plan.code)} disabled={openRequest} className="mt-6 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-stone-900 font-black text-white disabled:cursor-not-allowed disabled:bg-stone-300">{openRequest ? 'Open plan already exists' : <>Request this plan <ArrowRight className="h-4 w-4" /></>}</button></article>)}</div>
+      <section aria-labelledby="choose-plan-heading"><div className="mb-5"><h2 id="choose-plan-heading" className="text-2xl font-black text-stone-900 sm:text-3xl">Choose your meal count</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-stone-600">Choose a plan, then tell us which services and delivery address you need. The price is quoted after those details are checked.</p></div>
+        <div className="grid gap-4 lg:grid-cols-3">{plans.map(plan => <article key={plan.code} className="flex flex-col rounded-[26px] border border-stone-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-lg sm:p-6">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-800">{plan.label}</p>
+          <h3 className="mt-3 text-4xl font-black tracking-tight text-stone-900">{plan.meals} <span className="text-lg font-bold text-stone-600">meals</span></h3>
+          <p className="mt-2 min-h-12 text-sm leading-6 text-stone-600">{plan.description}</p>
+          <div className="mt-5 flex-1 border-t border-stone-100 pt-4"><p className="text-xs font-semibold text-stone-500">Plan price</p><p className="mt-1 text-sm font-bold text-stone-900">Confirmed before payment</p></div>
+          <button type="button" onClick={() => openRequest ? document.getElementById('my-meal-plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : openCheckoutForPlan(plan.code)} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0D6E44] px-4 text-sm font-extrabold text-white transition-colors hover:bg-[#095737] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
+            {openRequest ? 'View your current plan' : <>Request {plan.meals} meals <ArrowRight className="h-4 w-4" /></>}
+          </button>
+        </article>)}</div>
       </section>
 
-      <section className="grid gap-4 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 sm:grid-cols-3 sm:p-6"><Step icon={Clock3} title="1. Request" text="Choose meal credits, services, start date and address." /><Step icon={ShieldCheck} title="2. Operations check" text="We verify delivery, capacity and final price." /><Step icon={UtensilsCrossed} title="3. Activate" text="The admin confirms verified payment, then activates the plan." /></section>
+      <section aria-labelledby="plan-steps-heading" className="rounded-3xl border border-stone-200 bg-white p-5 sm:p-6"><h2 id="plan-steps-heading" className="text-xl font-black text-stone-900">What happens next?</h2><div className="mt-5 grid gap-5 sm:grid-cols-3"><Step icon={UtensilsCrossed} title="1. Choose" text="Pick your meal count, services, start date and delivery address." /><Step icon={Clock3} title="2. Get a quote" text="We check delivery and availability, then confirm the total." /><Step icon={ShieldCheck} title="3. Decide" text="Review the amount before paying. Your plan starts after payment is verified." /></div></section>
     </div>
   </div>;
 };
