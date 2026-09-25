@@ -23,9 +23,26 @@ export interface AuthState {
 }
 
 // Authentication always uses Supabase.
+// A normal signed-in session must never authorize the password-reset form.
+let recoverySession: { userId: string; createdAt: number } | null = null;
+const rememberRecovery = (session: Session | null) => {
+  recoverySession = session?.user?.id ? { userId: session.user.id, createdAt: Date.now() } : null;
+};
+const hasRecovery = (session: Session | null) => Boolean(
+  session?.user?.id && recoverySession?.userId === session.user.id && Date.now() - recoverySession.createdAt < 30 * 60 * 1000
+);
+
+// Subscribe before the app renders so an SDK-consumed recovery URL is not mistaken for a normal login.
+if (isSupabaseConfigured()) {
+  getSupabaseClient().auth.onAuthStateChange?.((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') rememberRecovery(session);
+    if (event === 'SIGNED_OUT') rememberRecovery(null);
+  });
+}
 
 
 export const authService = {
+  notePasswordRecovery(session: Session | null) { rememberRecovery(session); },
   /**
    * Registers a new user with Supabase Auth and metadata for automatic profile creation
    */
@@ -145,11 +162,13 @@ export const authService = {
       const accessToken = hash.get('access_token');
       const refreshToken = hash.get('refresh_token');
       if (code) {
-        const { error } = await client.auth.exchangeCodeForSession(code);
+        const { data, error } = await client.auth.exchangeCodeForSession(code);
         if (error) throw error;
+        rememberRecovery(data.session);
       } else if (accessToken && refreshToken) {
-        const { error } = await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        const { data, error } = await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
         if (error) throw error;
+        rememberRecovery(data.session);
       } else {
         throw new Error('The link has no recovery session.');
       }
@@ -176,21 +195,23 @@ export const authService = {
       if (error) throw error;
 
       const code = url.searchParams.get('code');
-      if (!session && code) {
+      if (code && !hasRecovery(session)) {
         const exchanged = await client.auth.exchangeCodeForSession(code);
         if (exchanged.error) throw exchanged.error;
         session = exchanged.data.session;
+        rememberRecovery(session);
       }
 
       const accessToken = hash.get('access_token');
       const refreshToken = hash.get('refresh_token');
-      if (!session && accessToken && refreshToken) {
+      if (accessToken && refreshToken && !hasRecovery(session)) {
         const restored = await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
         if (restored.error) throw restored.error;
         session = restored.data.session;
+        rememberRecovery(session);
       }
 
-      if (!session) {
+      if (!hasRecovery(session)) {
         return { ready: false, error: new Error('This reset link is invalid, expired, or already used. Request a new link from sign in.') };
       }
 
@@ -246,11 +267,13 @@ export const authService = {
     try {
       const client = getSupabaseClient();
       const { data: { session }, error: sessionError } = await client.auth.getSession();
-      if (sessionError || !session) {
+      if (sessionError || !hasRecovery(session)) {
         return { error: new Error('This reset link is invalid, expired, or already used. Request a new link from sign in.') };
       }
       const { error } = await client.auth.updateUser({ password });
       if (error) throw error;
+      rememberRecovery(null);
+      await client.auth.signOut();
       return { error: null };
     } catch (err: any) {
       console.error('[Thalimitra Auth] Password update failed:', err);
@@ -268,6 +291,7 @@ export const authService = {
       const client = getSupabaseClient();
       const { error } = await client.auth.signOut();
       if (error) throw error;
+      rememberRecovery(null);
       return { error: null };
     } catch (err: any) {
       console.error('[Thalimitra Auth] Sign out error:', err);

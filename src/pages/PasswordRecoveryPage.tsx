@@ -108,7 +108,7 @@ export const PasswordRecoveryPage: React.FC = () => {
             onClick={returnToSignIn}
             className="mt-6 w-full rounded-2xl bg-[#0D6E44] px-5 py-3 text-sm font-black text-white hover:bg-[#08482C]"
           >
-            {isOpsBuild ? 'Open Operations' : 'Sign in'}
+            {isOpsBuild ? 'Sign in to Operations' : 'Sign in'}
           </button>
         ) : recoveryState === 'checking' ? (
           <div className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-stone-100 p-4 text-sm font-bold text-stone-600">

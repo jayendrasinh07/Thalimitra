@@ -376,7 +376,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshUserProfile();
 
     const { data: { subscription: authSub } } = authService.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') setActiveTab('password_recovery');
+      if (event === 'PASSWORD_RECOVERY') {
+        authService.notePasswordRecovery(session);
+        setActiveTab('password_recovery');
+      }
+      if (event === 'SIGNED_OUT') authService.notePasswordRecovery(null);
       if (session?.user) {
         if(authIdentity.current!==session.user.id){++authGeneration.current;clearCustomerData();authIdentity.current=session.user.id;}
         setCurrentUser(session.user);
@@ -424,8 +428,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const signUpUser = async (email: string, password: string, fullName: string, phone: string, segment: CustomerSegmentType = 'individual') => {
     const res = await authService.signUp(email, password, fullName, phone, segment);
-    if (!res.error && !res.needsEmailConfirmation) {
-      await refreshUserProfile();
+    if (!res.error && !res.needsEmailConfirmation && res.user) {
+      const checked = await finishCustomerAuth({ user: res.user, session: null, error: null });
+      return { error: checked.error, needsEmailConfirmation: false };
     }
     return res;
   };

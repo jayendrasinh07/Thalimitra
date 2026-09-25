@@ -71,15 +71,42 @@ function serviceFor(auth, href, native = false, functions = { invoke: async () =
   assert.equal((await operations.authService.requestPasswordReset('staff@example.com', 'operations')).error, null);
   assert.deepEqual(JSON.parse(JSON.stringify(operationsReset)), { email: 'staff@example.com', options: { redirectTo: 'https://ops.thalimitra.com/reset-password' } });
 
-  const active = serviceFor({ getSession: async () => ({ data: { session: { user: { id: 'u' } } }, error: null }) }, 'https://thalimitra.com/reset-password#access_token=secret');
+  const ordinarySession = { user: { id: 'u' } };
+  const active = serviceFor({ getSession: async () => ({ data: { session: ordinarySession }, error: null }) }, 'https://thalimitra.com/reset-password');
+  assert.equal((await active.authService.preparePasswordRecovery()).ready, false);
+  active.authService.notePasswordRecovery(ordinarySession);
   assert.equal((await active.authService.preparePasswordRecovery()).ready, true);
   assert.equal(active.history.replaced, '/reset-password');
+  const wrongAccount = serviceFor({ getSession: async () => ({ data: { session: { user: { id: 'other-user' } } }, error: null }) }, 'https://thalimitra.com/reset-password');
+  wrongAccount.authService.notePasswordRecovery(ordinarySession);
+  assert.equal((await wrongAccount.authService.preparePasswordRecovery()).ready, false);
+
+  let updated = false;
+  const update = serviceFor({
+    getSession: async () => ({ data: { session: ordinarySession }, error: null }),
+    updateUser: async () => { updated = true; return { error: null }; },
+    signOut: async () => ({ error: null }),
+  }, 'https://thalimitra.com/reset-password');
+  assert.match((await update.authService.updatePassword('StrongPassword1!')).error.message, /invalid, expired/);
+  assert.equal(updated, false);
+  update.authService.notePasswordRecovery(ordinarySession);
+  assert.equal((await update.authService.updatePassword('StrongPassword1!')).error, null);
+  assert.equal(updated, true);
+  assert.match((await update.authService.updatePassword('StrongPassword1!')).error.message, /invalid, expired/);
 
   const code = serviceFor({
     getSession: async () => ({ data: { session: null }, error: null }),
     exchangeCodeForSession: async value => ({ data: { session: value === 'valid-code' ? { user: { id: 'u' } } : null }, error: null }),
   }, 'https://thalimitra.com/reset-password?code=valid-code');
   assert.equal((await code.authService.preparePasswordRecovery()).ready, true);
+
+  let exchanged = false;
+  const switched = serviceFor({
+    getSession: async () => ({ data: { session: { user: { id: 'old-user' } } }, error: null }),
+    exchangeCodeForSession: async () => { exchanged = true; return { data: { session: { user: { id: 'link-owner' } } }, error: null }; },
+  }, 'https://thalimitra.com/reset-password?code=new-account-code');
+  assert.equal((await switched.authService.preparePasswordRecovery()).ready, true);
+  assert.equal(exchanged, true);
 
   const hash = serviceFor({
     getSession: async () => ({ data: { session: null }, error: null }),
@@ -110,7 +137,7 @@ function serviceFor(auth, href, native = false, functions = { invoke: async () =
   assert.match(result.error.message, /invalid, expired, or already used/);
 
   let receivedTokens;
-  const mobile = serviceFor({ setSession: async tokens => { receivedTokens = tokens; return { error: null }; } }, 'https://localhost/', true);
+  const mobile = serviceFor({ setSession: async tokens => { receivedTokens = tokens; return { data: { session: ordinarySession }, error: null }; } }, 'https://localhost/', true);
   assert.equal(await mobile.authService.consumeMobileRecoveryLink('https://thalimitra.com/reset-password#access_token=access&refresh_token=refresh&type=recovery'), true);
   assert.deepEqual(JSON.parse(JSON.stringify(receivedTokens)), { access_token: 'access', refresh_token: 'refresh' });
   assert.equal(mobile.history.replaced, '/reset-password');

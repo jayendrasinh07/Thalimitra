@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   X, 
   Mail, 
@@ -29,7 +29,7 @@ export const AuthModal: React.FC = () => {
   const isKitchenSignIn = (import.meta as any).env?.VITE_APP_TARGET === 'ops';
   const emailOtpEnabled = !isKitchenSignIn && (import.meta as any).env?.VITE_CUSTOMER_EMAIL_OTP_ENABLED === 'true';
 
-  const [mode, setMode] = useState<'signin' | 'signup' | 'verify'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'check_email' | 'verify'>('signin');
   const isSignIn = isKitchenSignIn || mode === 'signin';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,13 +38,44 @@ export const AuthModal: React.FC = () => {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [resendUntil, setResendUntil] = useState(0);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthModalOpen) return;
+    setMode('signin');
+    setEmail('');
+    setPassword('');
+    setFullName('');
+    setPhone('');
+    setOtp('');
+    setErrorMessage(null);
+    setInfoMessage(null);
+    setResendUntil(0);
+    setResendSeconds(0);
+  }, [isAuthModalOpen]);
+
+  useEffect(() => {
+    if (!isAuthModalOpen || !resendUntil) return;
+    const timer = window.setInterval(() => setResendSeconds(Math.max(0, Math.ceil((resendUntil - Date.now()) / 1000))), 1000);
+    return () => window.clearInterval(timer);
+  }, [isAuthModalOpen, resendUntil]);
+
+  const changeMode = (next: 'signin' | 'signup' | 'verify') => {
+    setMode(next);
+    setPassword('');
+    setOtp('');
+    setErrorMessage(null);
+    setInfoMessage(null);
+  };
 
   if (!isAuthModalOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'check_email') return;
     setErrorMessage(null);
     setLoading(true);
 
@@ -54,7 +85,7 @@ export const AuthModal: React.FC = () => {
           setErrorMessage('Enter the 8-digit code from your email.');
           return;
         }
-        const { error } = await verifySignUpOtp(email, otp);
+        const { error } = await verifySignUpOtp(email.trim().toLowerCase(), otp);
         if (error) {
           setErrorMessage(error.message || 'This code could not be verified. If you already have an account, sign in instead.');
           return;
@@ -63,7 +94,7 @@ export const AuthModal: React.FC = () => {
         showToast('Email verified', 'Your Thalimitra account is ready.', 'success');
         setIsAuthModalOpen(false);
       } else if (isSignIn) {
-        const { error } = await signInUser(email, password);
+        const { error } = await signInUser(email.trim().toLowerCase(), password);
         if (error) {
           setErrorMessage(error.message || 'Invalid email or password.');
           return;
@@ -76,7 +107,7 @@ export const AuthModal: React.FC = () => {
           setLoading(false);
           return;
         }
-        if (!phone.trim() || phone.trim().length < 10) {
+        if (!/^[6-9]\d{9}$/.test(phone)) {
           setErrorMessage('Please enter a valid 10-digit mobile number.');
           setLoading(false);
           return;
@@ -88,17 +119,19 @@ export const AuthModal: React.FC = () => {
           return;
         }
 
-        const { error, needsEmailConfirmation } = await signUpUser(email, password, fullName, phone);
+        const { error, needsEmailConfirmation } = await signUpUser(email.trim().toLowerCase(), password, fullName.trim(), phone);
         if (error) {
           setErrorMessage(error.message || 'Could not complete registration.');
           return;
         }
         if (needsEmailConfirmation) {
           setPassword('');
-          setMode(emailOtpEnabled ? 'verify' : 'signin');
+          setMode(emailOtpEnabled ? 'check_email' : 'signin');
+          setResendUntil(Date.now() + 60_000);
+          setResendSeconds(60);
           setInfoMessage(emailOtpEnabled
-            ? 'If this is a new account, check your email for an 8-digit code. Already registered? Sign in or reset your password.'
-            : 'If this is a new account, check your email for a confirmation link. Already registered? Sign in or reset your password.');
+            ? 'New here? Check your inbox for an 8-digit code. If you already have an account, sign in or reset your password. For privacy, we do not confirm whether an email is registered.'
+            : 'New here? Check your inbox for a confirmation link. If you already have an account, sign in or reset your password.');
           return;
         }
         showToast('Account Created!', 'Welcome to Thalimitra Gandhinagar. Your profile is ready.', 'success');
@@ -112,6 +145,7 @@ export const AuthModal: React.FC = () => {
   };
 
   const handleResendSignupEmail = async () => {
+    if (resendSeconds > 0) return;
     setErrorMessage(null);
     setInfoMessage(null);
     setLoading(true);
@@ -119,9 +153,11 @@ export const AuthModal: React.FC = () => {
     try {
       const { error } = await authService.resendSignupEmail(email);
       if (error) {
-        setErrorMessage(error.message || 'Could not resend the code. Please try again later.');
+        setErrorMessage(/rate limit|too many/i.test(error.message) ? 'Please wait before requesting another code.' : error.message || 'Could not resend the code. Please try again later.');
         return;
       }
+      setResendUntil(Date.now() + 60_000);
+      setResendSeconds(60);
       setInfoMessage('If this account still needs verification, check your email for a new code. Already registered? Sign in or reset your password.');
     } finally {
       setLoading(false);
@@ -170,23 +206,23 @@ export const AuthModal: React.FC = () => {
           </div>
 
           <h3 className="text-xl font-black tracking-tight">
-             {isKitchenSignIn ? 'Kitchen sign in' : mode === 'verify' ? 'Verify your email' : mode === 'signin' ? 'Sign in to your account' : 'Create your Thalimitra account'}
+             {isKitchenSignIn ? 'Kitchen sign in' : mode === 'check_email' ? 'Continue with your email' : mode === 'verify' ? 'Enter your email code' : mode === 'signin' ? 'Sign in to your account' : 'Create your Thalimitra account'}
           </h3>
           <p className="text-xs text-stone-200 mt-1">
             {isKitchenSignIn
               ? 'Access menu planning and live order operations.'
-               : mode === 'verify'
-               ? 'Check your email if this is a new account.'
+               : mode === 'check_email' || mode === 'verify'
+               ? 'Choose the next step for your account.'
                : mode === 'signin'
               ? 'Access your saved addresses and orders.'
               : 'Daily fresh, hygienic home-style meals delivered to your doorstep.'}
           </p>
 
           {/* Mode Switcher Tabs */}
-           {!isKitchenSignIn && mode !== 'verify' && <div className="flex bg-black/20 p-1 rounded-xl mt-4">
+           {!isKitchenSignIn && mode !== 'verify' && mode !== 'check_email' && <div className="flex bg-black/20 p-1 rounded-xl mt-4">
             <button
               type="button"
-              onClick={() => { setMode('signin'); setErrorMessage(null); setInfoMessage(null); }}
+              onClick={() => changeMode('signin')}
               className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 mode === 'signin' ? 'bg-white text-[#0D6E44] shadow-xs' : 'text-stone-200 hover:text-white'
               }`}
@@ -195,7 +231,7 @@ export const AuthModal: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => { setMode('signup'); setErrorMessage(null); setInfoMessage(null); }}
+              onClick={() => changeMode('signup')}
               className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 mode === 'signup' ? 'bg-white text-[#0D6E44] shadow-xs' : 'text-stone-200 hover:text-white'
               }`}
@@ -249,7 +285,9 @@ export const AuthModal: React.FC = () => {
                     type="tel"
                     required
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    inputMode="numeric"
+                    maxLength={10}
                     placeholder="10-digit mobile number"
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-white border border-stone-300 text-sm text-stone-900 focus:ring-2 focus:ring-[#0D6E44] focus:border-transparent outline-none font-medium"
                   />
@@ -267,7 +305,7 @@ export const AuthModal: React.FC = () => {
               <input
                 type="email"
                 required
-               readOnly={mode === 'verify'}
+                readOnly={mode === 'verify' || mode === 'check_email'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
@@ -277,7 +315,7 @@ export const AuthModal: React.FC = () => {
           </div>
 
            {/* Password */}
-           {mode !== 'verify' && <div>
+           {(mode === 'signin' || mode === 'signup') && <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold text-stone-700">Password</label>
               {isSignIn && (
@@ -323,14 +361,28 @@ export const AuthModal: React.FC = () => {
                 placeholder="00000000"
                 className="w-full px-4 py-3 rounded-xl bg-white border border-stone-300 text-center tracking-[0.4em] text-lg font-bold text-stone-900 focus:ring-2 focus:ring-[#0D6E44] focus:border-transparent outline-none"
               />
-              <button type="button" onClick={handleResendSignupEmail} disabled={loading} className="mt-2 text-xs font-semibold text-[#0D6E44] hover:underline disabled:opacity-60">
-                Resend verification email
+              <button type="button" onClick={handleResendSignupEmail} disabled={loading || resendSeconds > 0} className="mt-2 text-xs font-semibold text-[#0D6E44] hover:underline disabled:opacity-60">
+                {resendSeconds > 0 ? `Request another code in ${resendSeconds}s` : "Didn't get a code? Try again"}
+              </button>
+            </div>
+          )}
+
+          {mode === 'check_email' && emailOtpEnabled && (
+            <div className="space-y-3">
+              <button type="button" onClick={() => changeMode('verify')} className="w-full rounded-2xl bg-[#0D6E44] px-4 py-3.5 text-sm font-black text-white hover:bg-[#08482C]">
+                I received an 8-digit code
+              </button>
+              <button type="button" onClick={() => changeMode('signin')} className="w-full rounded-2xl border border-[#0D6E44] px-4 py-3 text-sm font-bold text-[#0D6E44] hover:bg-emerald-50">
+                Already registered? Sign in
+              </button>
+              <button type="button" onClick={() => { changeMode('signin'); void handleForgotPassword(); }} className="w-full text-xs font-semibold text-stone-600 hover:text-[#0D6E44]">
+                Forgot your password?
               </button>
             </div>
           )}
 
           {/* Submit CTA */}
-          <button
+          {mode !== 'check_email' && <button
             type="submit"
             disabled={loading}
             className="w-full py-3.5 rounded-2xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-sm font-black shadow-lg shadow-emerald-950/15 hover:shadow-xl transition-all cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:opacity-60"
@@ -346,14 +398,12 @@ export const AuthModal: React.FC = () => {
                 <ArrowRight className="w-4 h-4 text-amber-300" />
               </>
             )}
-          </button>
+          </button>}
 
            {mode === 'signin' && emailOtpEnabled && (
              <button type="button" onClick={() => {
                if (!email.trim()) { setErrorMessage('Enter your email address first.'); return; }
-               setMode('verify');
-               setPassword('');
-               setErrorMessage(null);
+               changeMode('verify');
                setInfoMessage('Enter the 8-digit code from your verification email. Already registered? Sign in or reset your password.');
              }} className="w-full text-xs font-semibold text-[#0D6E44] hover:underline">
                Have a verification code?
@@ -361,9 +411,15 @@ export const AuthModal: React.FC = () => {
            )}
 
            {mode === 'verify' && emailOtpEnabled && (
-             <button type="button" onClick={() => { setMode('signin'); setErrorMessage(null); setInfoMessage(null); }} className="w-full text-xs font-semibold text-stone-600 hover:text-[#0D6E44]">
-               Already verified? Sign in
-             </button>
+             <div className="space-y-2 border-t border-stone-200 pt-4 text-center">
+               <p className="text-xs text-stone-600">Already have an account?</p>
+               <button type="button" onClick={() => changeMode('signin')} className="w-full rounded-xl border border-[#0D6E44] px-4 py-3 text-sm font-bold text-[#0D6E44] hover:bg-emerald-50">
+                 Sign in instead
+               </button>
+               <button type="button" onClick={() => { changeMode('signin'); void handleForgotPassword(); }} className="text-xs font-semibold text-stone-600 hover:text-[#0D6E44]">
+                 Forgot password?
+               </button>
+             </div>
            )}
 
           {/* Privacy & Trust Badge */}

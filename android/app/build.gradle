@@ -19,8 +19,8 @@ android {
         applicationId "com.thalimitra.customer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 16
-        versionName "1.15"
+        versionCode 17
+        versionName "1.16"
         manifestPlaceholders = [resetLinkHost: "thalimitra.com"]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
