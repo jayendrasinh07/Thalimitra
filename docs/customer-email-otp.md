@@ -15,6 +15,7 @@ The customer app has an eight-digit signup verification screen and Supabase `ver
    ```
 
 3. A fresh test customer received the email, an invalid code was rejected, the valid code verified, and password sign-in succeeded. A customer password-reset email also arrived. Resend throttling, expiry, and the older APK link remain separate checks. Do not create production test orders.
-4. The Cloudflare Customer build is live with the OTP flag and 8-digit screen. Set the same flag for Android v1.13 when building. The Android release still needs the established signing keystore, authorized phone connection, signed APK verification, and a physical-device smoke test. Do not set this flag for Operations.
+4. The Cloudflare Customer build is live with the OTP flag and 8-digit screen. `npm run android:sync` enables the same flag for the Android Preview build. Older installed APKs still show the confirmation-link instructions until updated. The Android release still needs the established signing keystore, authorized phone connection, signed APK verification, and a physical-device smoke test. Do not set this flag for Operations.
+5. Supabase may accept a repeated sign-up request for an already confirmed address without sending another verification email. Keep the UI message conditional; direct existing customers to sign-in or password reset without exposing whether an address is registered.
 
 Supabase references: [email templates](https://supabase.com/docs/guides/auth/auth-email-templates), [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [OTP verification](https://supabase.com/docs/reference/javascript/auth-verifyotp).

@@ -56,7 +56,7 @@ export const AuthModal: React.FC = () => {
         }
         const { error } = await verifySignUpOtp(email, otp);
         if (error) {
-          setErrorMessage(error.message || 'This code could not be verified. Check it and try again.');
+          setErrorMessage(error.message || 'This code could not be verified. If you already have an account, sign in instead.');
           return;
         }
         setOtp('');
@@ -97,8 +97,8 @@ export const AuthModal: React.FC = () => {
           setPassword('');
           setMode(emailOtpEnabled ? 'verify' : 'signin');
           setInfoMessage(emailOtpEnabled
-            ? 'Enter the 8-digit code sent to your email. Check Spam or Promotions if you cannot find it.'
-            : 'Check your email for the Thalimitra confirmation link. Open it, then return here and sign in. There is no code to enter in the app. If the email is missing, check Spam or Promotions.');
+            ? 'If this is a new account, check your email for an 8-digit code. Already registered? Sign in or reset your password.'
+            : 'If this is a new account, check your email for a confirmation link. Already registered? Sign in or reset your password.');
           return;
         }
         showToast('Account Created!', 'Welcome to Thalimitra Gandhinagar. Your profile is ready.', 'success');
@@ -122,7 +122,7 @@ export const AuthModal: React.FC = () => {
         setErrorMessage(error.message || 'Could not resend the code. Please try again later.');
         return;
       }
-      setInfoMessage('A new verification email was requested. Check your inbox and Spam or Promotions.');
+      setInfoMessage('If this account still needs verification, check your email for a new code. Already registered? Sign in or reset your password.');
     } finally {
       setLoading(false);
       setResending(false);
@@ -176,7 +176,7 @@ export const AuthModal: React.FC = () => {
             {isKitchenSignIn
               ? 'Access menu planning and live order operations.'
                : mode === 'verify'
-               ? 'One more step to secure your new account.'
+               ? 'Check your email if this is a new account.'
                : mode === 'signin'
               ? 'Access your saved addresses and orders.'
               : 'Daily fresh, hygienic home-style meals delivered to your doorstep.'}
@@ -354,7 +354,7 @@ export const AuthModal: React.FC = () => {
                setMode('verify');
                setPassword('');
                setErrorMessage(null);
-               setInfoMessage('Enter the 8-digit code from your Thalimitra verification email.');
+               setInfoMessage('Enter the 8-digit code from your verification email. Already registered? Sign in or reset your password.');
              }} className="w-full text-xs font-semibold text-[#0D6E44] hover:underline">
                Have a verification code?
              </button>
