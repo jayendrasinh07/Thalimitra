@@ -410,16 +410,6 @@ export const AuthModal: React.FC = () => {
             )}
           </button>}
 
-           {mode === 'signin' && emailOtpEnabled && (
-             <button type="button" onClick={() => {
-               if (!email.trim()) { setErrorMessage('Enter your email address first.'); return; }
-               changeMode('verify');
-               setInfoMessage('Enter the 8-digit code from your verification email. Already registered? Sign in or reset your password.');
-             }} className="w-full text-xs font-semibold text-[#0D6E44] hover:underline">
-               Have a verification code?
-             </button>
-           )}
-
            {mode === 'verify' && emailOtpEnabled && (
              <div className="space-y-2 border-t border-stone-200 pt-4 text-center">
                <p className="text-xs text-stone-600">Already have an account?</p>

@@ -47,7 +47,8 @@ const subscription = { id: 'sub', plan_code: 'weekly_7', plan_name: '7-Meal Rout
   assert.match(multiServiceMigration, /enforce_user_role_separation/);
   assert.match(modal, /Which services do you prefer\?/);
   assert.match(modal, /not a number of days/);
-  assert.match(modal, /Send request for a quote/);
+  assert.match(modal, /Continue with request/);
+  assert.match(modal, /fixed inset-0 z-\[100\] flex flex-col/);
   assert.match(modal, /aria-pressed=\{selected\}/);
   assert.match(management, /item\.meal_types\.join\('\s*\+\s*'\)/);
   console.log('PASS: multi-service subscriptions, role isolation, admin payment gate and safe customer messaging');
