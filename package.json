@@ -7,7 +7,7 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build --configLoader runner",
     "build:ops": "vite build --config vite.ops.config.ts --configLoader runner",
-    "android:sync": "npm run build && node scripts/prepare-android-assets.cjs && cap sync android",
+    "android:sync": "node scripts/android-sync.cjs",
     "android:open": "cap open android",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

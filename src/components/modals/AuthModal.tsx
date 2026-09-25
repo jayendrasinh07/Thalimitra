@@ -37,6 +37,7 @@ export const AuthModal: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
@@ -114,6 +115,7 @@ export const AuthModal: React.FC = () => {
     setErrorMessage(null);
     setInfoMessage(null);
     setLoading(true);
+    setResending(true);
     try {
       const { error } = await authService.resendSignupEmail(email);
       if (error) {
@@ -123,6 +125,7 @@ export const AuthModal: React.FC = () => {
       setInfoMessage('A new verification email was requested. Check your inbox and Spam or Promotions.');
     } finally {
       setLoading(false);
+      setResending(false);
     }
   };
 
@@ -335,7 +338,7 @@ export const AuthModal: React.FC = () => {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                 <span>{mode === 'verify' ? 'Verifying...' : isSignIn ? 'Signing in...' : 'Creating Account...'}</span>
+                 <span>{mode === 'verify' ? resending ? 'Sending code...' : 'Verifying...' : isSignIn ? 'Signing in...' : 'Creating Account...'}</span>
               </>
             ) : (
               <>

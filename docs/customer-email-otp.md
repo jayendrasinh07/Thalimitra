@@ -1,11 +1,11 @@
 # Customer signup email OTP rollout
 
-The customer app has an eight-digit signup verification screen and Supabase `verifyOtp`/`resend` calls, matching the hosted project's Email OTP length setting. It stays behind `VITE_CUSTOMER_EMAIL_OTP_ENABLED=true` until the production email sender and template are verified. With the flag unset, the existing confirmation-link flow remains active.
+The customer app has an eight-digit signup verification screen and Supabase `verifyOtp`/`resend` calls, matching the hosted project's Email OTP length setting. The Customer Cloudflare build now sets `VITE_CUSTOMER_EMAIL_OTP_ENABLED=true`; Operations does not. The sign-up email keeps the confirmation link for older APKs.
 
 ## Production sequence
 
-1. Configure a transactional SMTP sender on the Thalimitra Supabase project using a verified sending domain. Resend Free is suitable for the pilot at up to 100 emails/day and 3,000/month; use its [Supabase SMTP guide](https://resend.com/docs/send-with-supabase-smtp). Store credentials only in Supabase Auth SMTP settings; do not commit them. The project's default Free-tier sender cannot serve arbitrary customer addresses or edit templates.
-2. Change **Auth → Email Templates → Confirm sign up** to include both the eight-digit token and confirmation link. Keep the link for older APKs:
+1. Resend verified `auth.thalimitra.com`, and Supabase Auth custom SMTP sends from `no-reply@auth.thalimitra.com`. Keep SMTP credentials only in Supabase and the restricted Resend key; never commit them. Resend Free is suitable for the pilot at up to 100 emails/day and 3,000/month; see its [Supabase SMTP guide](https://resend.com/docs/send-with-supabase-smtp).
+2. **Auth → Email Templates → Confirm sign up** contains both the eight-digit token and confirmation link. Keep the link for older APKs:
 
    ```html
    <h2>Verify your Thalimitra email</h2>
@@ -14,7 +14,7 @@ The customer app has an eight-digit signup verification screen and Supabase `ver
    <p>If you did not create an account, ignore this email. Never share the code.</p>
    ```
 
-3. From a fresh test customer address, verify code delivery, valid/invalid code handling, resend rate limits, sign-in, and the older confirmation link. Do not create production test orders.
-4. Set `VITE_CUSTOMER_EMAIL_OTP_ENABLED=true` for the Cloudflare customer build and Android release build, then deploy both. Do not set it for Operations.
+3. A fresh test customer received the email, an invalid code was rejected, the valid code verified, and password sign-in succeeded. A customer password-reset email also arrived. Resend throttling, expiry, and the older APK link remain separate checks. Do not create production test orders.
+4. The Cloudflare Customer build is live with the OTP flag and 8-digit screen. Set the same flag for Android v1.13 when building. The Android release still needs the established signing keystore, authorized phone connection, signed APK verification, and a physical-device smoke test. Do not set this flag for Operations.
 
 Supabase references: [email templates](https://supabase.com/docs/guides/auth/auth-email-templates), [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [OTP verification](https://supabase.com/docs/reference/javascript/auth-verifyotp).
