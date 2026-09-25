@@ -124,6 +124,11 @@ const MainContent: React.FC = () => {
     setIsLocationModalOpen,
   } = useApp();
 
+  const [hasOpenedSubscribe, setHasOpenedSubscribe] = React.useState(isSubscribeModalOpen);
+  React.useEffect(() => {
+    if (isSubscribeModalOpen) setHasOpenedSubscribe(true);
+  }, [isSubscribeModalOpen]);
+
   if (activeTab === 'password_recovery') {
     return (
       <div className="min-h-screen bg-[#f5f6f2] text-stone-900 font-sans selection:bg-emerald-200 selection:text-emerald-950">
@@ -186,7 +191,7 @@ const MainContent: React.FC = () => {
 
       <React.Suspense fallback={null}>
         {isOrderOnceModalOpen && <OrderOnceModal />}
-        {isSubscribeModalOpen && <SubscribeModal />}
+        {hasOpenedSubscribe && <SubscribeModal />}
         {isTraceabilityModalOpen && <TraceabilityModal />}
         {isCorporateModalOpen && <CorporateEnquiryModal />}
         {isFeedbackModalOpen && <FeedbackModal />}
