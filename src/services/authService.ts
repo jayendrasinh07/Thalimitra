@@ -52,8 +52,8 @@ export const authService = {
     fullName: string,
     phone: string,
     segment: CustomerSegmentType = 'individual'
-  ): Promise<{ user: User | null; needsEmailConfirmation: boolean; error: Error | null }> {
-    if (!isSupabaseConfigured()) { return {user:null,needsEmailConfirmation:false,error:new Error('Sign-in is currently unavailable.')} ; }
+  ): Promise<{ user: User | null; needsEmailConfirmation: boolean; alreadyRegistered: boolean; error: Error | null }> {
+    if (!isSupabaseConfigured()) { return {user:null,needsEmailConfirmation:false,alreadyRegistered:false,error:new Error('Sign-in is currently unavailable.')} ; }
 
     try {
       const client = getSupabaseClient();
@@ -70,11 +70,20 @@ export const authService = {
         }
       });
 
+      // Supabase can report a confirmed duplicate as either an error or a
+      // sanitized user with no identities. Neither response means an OTP was sent.
+      if (error && (['user_already_exists', 'email_exists'].includes(error.code ?? '') || error.message === 'User already registered')) {
+        return { user: null, needsEmailConfirmation: false, alreadyRegistered: true, error: null };
+      }
       if (error) throw error;
-      return { user: data.user, needsEmailConfirmation: !data.session, error: null };
+      if (!data.session && Array.isArray(data.user?.identities) && data.user.identities.length === 0) {
+        return { user: null, needsEmailConfirmation: false, alreadyRegistered: true, error: null };
+      }
+      if (!data.user) throw new Error('Registration could not be completed. Please try again.');
+      return { user: data.user, needsEmailConfirmation: !data.session, alreadyRegistered: false, error: null };
     } catch (err: any) {
       console.error('[Thalimitra Auth] Sign up error:', err);
-      return { user: null, needsEmailConfirmation: false, error: err };
+      return { user: null, needsEmailConfirmation: false, alreadyRegistered: false, error: err };
     }
   },
 

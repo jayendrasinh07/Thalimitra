@@ -40,9 +40,29 @@ function serviceFor(auth, href, native = false, functions = { invoke: async () =
   } }, 'https://thalimitra.com/');
   const pendingSignup = await unconfirmedSignup.authService.signUp('new@example.com', 'StrongPassword1!', 'New Customer', '9876543210');
   assert.equal(pendingSignup.needsEmailConfirmation, true);
+  assert.equal(pendingSignup.alreadyRegistered, false);
   assert.equal(signupOptions.options.emailRedirectTo, 'https://thalimitra.com/');
   const immediateSignup = serviceFor({ signUp: async () => ({ data: { user: { id: 'new-user' }, session: { access_token: 'token' } }, error: null }) }, 'https://thalimitra.com/');
   assert.equal((await immediateSignup.authService.signUp('new@example.com', 'StrongPassword1!', 'New Customer', '9876543210')).needsEmailConfirmation, false);
+
+  for (const response of [
+    { data: { user: { id: 'sanitized-user', identities: [] }, session: null }, error: null },
+    { data: { user: null, session: null }, error: { code: 'user_already_exists', message: 'User already registered' } },
+    { data: { user: null, session: null }, error: { code: 'email_exists', message: 'Email already exists' } },
+  ]) {
+    const duplicate = serviceFor({ signUp: async () => response }, 'https://thalimitra.com/');
+    const result = await duplicate.authService.signUp('existing@example.com', 'StrongPassword1!', 'Existing Customer', '9876543210');
+    assert.equal(result.alreadyRegistered, true);
+    assert.equal(result.needsEmailConfirmation, false);
+    assert.equal(result.user, null, 'A sanitized duplicate must not be treated as a new user');
+    assert.equal(result.error, null);
+  }
+  const pendingEmail = serviceFor({ signUp: async () => ({ data: { user: { id: 'unverified', identities: [{ provider: 'email' }] }, session: null }, error: null }) }, 'https://thalimitra.com/');
+  const pending = await pendingEmail.authService.signUp('pending@example.com', 'StrongPassword1!', 'Pending Customer', '9876543210');
+  assert.equal(pending.alreadyRegistered, false);
+  assert.equal(pending.needsEmailConfirmation, true, 'An unverified account must still be able to verify');
+  const malformed = serviceFor({ signUp: async () => ({ data: { user: null, session: null }, error: null }) }, 'https://thalimitra.com/');
+  assert.ok((await malformed.authService.signUp('new@example.com', 'StrongPassword1!', 'Customer', '9876543210')).error);
 
   let verificationPayload;
   let resendPayload;

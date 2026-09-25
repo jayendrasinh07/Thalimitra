@@ -29,7 +29,7 @@ export const AuthModal: React.FC = () => {
   const isKitchenSignIn = (import.meta as any).env?.VITE_APP_TARGET === 'ops';
   const emailOtpEnabled = !isKitchenSignIn && (import.meta as any).env?.VITE_CUSTOMER_EMAIL_OTP_ENABLED === 'true';
 
-  const [mode, setMode] = useState<'signin' | 'signup' | 'check_email' | 'verify'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'registered' | 'verify'>('signin');
   const isSignIn = isKitchenSignIn || mode === 'signin';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -75,7 +75,7 @@ export const AuthModal: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'check_email') return;
+    if (mode === 'registered') return;
     setErrorMessage(null);
     setLoading(true);
 
@@ -119,19 +119,27 @@ export const AuthModal: React.FC = () => {
           return;
         }
 
-        const { error, needsEmailConfirmation } = await signUpUser(email.trim().toLowerCase(), password, fullName.trim(), phone);
+        const { error, needsEmailConfirmation, alreadyRegistered } = await signUpUser(email.trim().toLowerCase(), password, fullName.trim(), phone);
         if (error) {
           setErrorMessage(error.message || 'Could not complete registration.');
           return;
         }
+        if (alreadyRegistered) {
+          setMode('registered');
+          setEmail(email.trim().toLowerCase());
+          setPassword('');
+          setOtp('');
+          setInfoMessage(null);
+          return;
+        }
         if (needsEmailConfirmation) {
           setPassword('');
-          setMode(emailOtpEnabled ? 'check_email' : 'signin');
+          setMode(emailOtpEnabled ? 'verify' : 'signin');
           setResendUntil(Date.now() + 60_000);
           setResendSeconds(60);
           setInfoMessage(emailOtpEnabled
-            ? 'New here? Check your inbox for an 8-digit code. If you already have an account, sign in or reset your password. For privacy, we do not confirm whether an email is registered.'
-            : 'New here? Check your inbox for a confirmation link. If you already have an account, sign in or reset your password.');
+            ? 'Enter the 8-digit verification code sent to your email. Check Spam if you cannot find it.'
+            : 'Check your email for the confirmation link, then return here to sign in.');
           return;
         }
         showToast('Account Created!', 'Welcome to Thalimitra Gandhinagar. Your profile is ready.', 'success');
@@ -206,20 +214,22 @@ export const AuthModal: React.FC = () => {
           </div>
 
           <h3 className="text-xl font-black tracking-tight">
-             {isKitchenSignIn ? 'Kitchen sign in' : mode === 'check_email' ? 'Continue with your email' : mode === 'verify' ? 'Enter your email code' : mode === 'signin' ? 'Sign in to your account' : 'Create your Thalimitra account'}
+             {isKitchenSignIn ? 'Kitchen sign in' : mode === 'registered' ? 'This email is already registered' : mode === 'verify' ? 'Verify your email' : mode === 'signin' ? 'Sign in to your account' : 'Create your Thalimitra account'}
           </h3>
           <p className="text-xs text-stone-200 mt-1">
             {isKitchenSignIn
               ? 'Access menu planning and live order operations.'
-               : mode === 'check_email' || mode === 'verify'
-               ? 'Choose the next step for your account.'
+               : mode === 'registered'
+               ? 'Sign in to continue with your existing Thalimitra account.'
+               : mode === 'verify'
+               ? 'One more step to finish setting up your account.'
                : mode === 'signin'
               ? 'Access your saved addresses and orders.'
               : 'Daily fresh, hygienic home-style meals delivered to your doorstep.'}
           </p>
 
           {/* Mode Switcher Tabs */}
-           {!isKitchenSignIn && mode !== 'verify' && mode !== 'check_email' && <div className="flex bg-black/20 p-1 rounded-xl mt-4">
+           {!isKitchenSignIn && mode !== 'verify' && mode !== 'registered' && <div className="flex bg-black/20 p-1 rounded-xl mt-4">
             <button
               type="button"
               onClick={() => changeMode('signin')}
@@ -305,7 +315,7 @@ export const AuthModal: React.FC = () => {
               <input
                 type="email"
                 required
-                readOnly={mode === 'verify' || mode === 'check_email'}
+                readOnly={mode === 'verify' || mode === 'registered'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
@@ -367,22 +377,22 @@ export const AuthModal: React.FC = () => {
             </div>
           )}
 
-          {mode === 'check_email' && emailOtpEnabled && (
+          {mode === 'registered' && (
             <div className="space-y-3">
-              <button type="button" onClick={() => changeMode('verify')} className="w-full rounded-2xl bg-[#0D6E44] px-4 py-3.5 text-sm font-black text-white hover:bg-[#08482C]">
-                I received an 8-digit code
-              </button>
-              <button type="button" onClick={() => changeMode('signin')} className="w-full rounded-2xl border border-[#0D6E44] px-4 py-3 text-sm font-bold text-[#0D6E44] hover:bg-emerald-50">
-                Already registered? Sign in
+              <button type="button" onClick={() => changeMode('signin')} className="w-full rounded-2xl bg-[#0D6E44] px-4 py-3.5 text-sm font-black text-white hover:bg-[#08482C]">
+                Sign in
               </button>
               <button type="button" onClick={() => { changeMode('signin'); void handleForgotPassword(); }} className="w-full text-xs font-semibold text-stone-600 hover:text-[#0D6E44]">
                 Forgot your password?
+              </button>
+              <button type="button" onClick={() => { changeMode('signup'); setEmail(''); }} className="w-full text-xs font-semibold text-stone-600 hover:text-[#0D6E44]">
+                Use a different email
               </button>
             </div>
           )}
 
           {/* Submit CTA */}
-          {mode !== 'check_email' && <button
+          {mode !== 'registered' && <button
             type="submit"
             disabled={loading}
             className="w-full py-3.5 rounded-2xl bg-[#0D6E44] hover:bg-[#08482C] text-white text-sm font-black shadow-lg shadow-emerald-950/15 hover:shadow-xl transition-all cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:opacity-60"

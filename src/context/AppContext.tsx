@@ -198,7 +198,7 @@ interface AppContextType {
   isSupabaseConnected: boolean;
   signInUser: (email: string, password: string) => Promise<{ error: Error | null }>;
   verifySignUpOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
-  signUpUser: (email: string, password: string, fullName: string, phone: string, segment?: CustomerSegmentType) => Promise<{ error: Error | null; needsEmailConfirmation: boolean }>;
+  signUpUser: (email: string, password: string, fullName: string, phone: string, segment?: CustomerSegmentType) => Promise<{ error: Error | null; needsEmailConfirmation: boolean; alreadyRegistered: boolean }>;
   signOutUser: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
 
@@ -430,7 +430,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const res = await authService.signUp(email, password, fullName, phone, segment);
     if (!res.error && !res.needsEmailConfirmation && res.user) {
       const checked = await finishCustomerAuth({ user: res.user, session: null, error: null });
-      return { error: checked.error, needsEmailConfirmation: false };
+      return { error: checked.error, needsEmailConfirmation: false, alreadyRegistered: false };
     }
     return res;
   };
