@@ -180,6 +180,6 @@ const plan = {
   assert.match(page, /Acceptance does not charge you/);
   assert.match(dashboard, /DELIVERY_DAY_PLANS_ENABLED \? <DeliveryDayPlanManagement \/> : <SubscriptionManagement \/>/);
   assert.match(app, /DELIVERY_DAY_PLANS_ENABLED \? <DeliveryDayPlansPage \/> : <MealPlansPage \/>/);
-  assert.match(flags, /DELIVERY_DAY_PLANS_ENABLED = false/);
+  assert.match(flags, /DELIVERY_DAY_PLANS_ENABLED = true/);
   console.log('PASS: delivery-day totals, guarded preview/request mapping, schedule estimate UI and rollout flag');
 })().catch(error => { console.error(error); process.exitCode = 1; });
