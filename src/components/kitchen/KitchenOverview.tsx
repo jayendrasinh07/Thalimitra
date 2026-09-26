@@ -14,6 +14,8 @@ import { kitchenMenuService, type KitchenMenuPlan } from '../../services/kitchen
 import { kitchenService, type KitchenOrder } from '../../services/kitchenService';
 import { istDate } from '../../services/availabilityEngine';
 import { KitchenShiftControl } from './KitchenShiftControl';
+import { DeliveryDayPlanProductionSummary } from './DeliveryDayPlanProductionSummary';
+import { DELIVERY_DAY_PLANS_ENABLED } from '../../config/featureFlags';
 
 interface KitchenOverviewProps {
   onOpenCatalog: () => void;
@@ -176,6 +178,7 @@ export const KitchenOverview = ({ onOpenCatalog, onOpenMenu, onOpenOrders }: Kit
       </div>
 
       <KitchenShiftControl />
+      {DELIVERY_DAY_PLANS_ENABLED && <DeliveryDayPlanProductionSummary />}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, CalendarDays, CheckCircle2, RefreshCw, ShieldCheck, UtensilsCrossed } from 'lucide-react';
+import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Pause, Play, RefreshCw, ShieldCheck, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { deliveryDayPlanService, type DeliveryDayPlan, type DeliveryDayPlanTemplate } from '../services/deliveryDayPlanService';
 
@@ -50,6 +50,26 @@ export const DeliveryDayPlansPage: React.FC = () => {
       showToast('Quote was not updated', reason instanceof Error ? reason.message : 'Try again shortly.', 'error');
     } finally { setBusy(null); }
   };
+  const runPlanAction = async (item: DeliveryDayPlan, action: 'skip' | 'pause' | 'resume', occurrenceId?: string) => {
+    if (busy) return;
+    setBusy(item.id);
+    try {
+      if (action === 'resume') await deliveryDayPlanService.resume(item.id);
+      else if (action === 'pause') {
+        const from = new Date(); from.setDate(from.getDate() + 1);
+        const resume = new Date(from); resume.setDate(resume.getDate() + 7);
+        await deliveryDayPlanService.pause(item.id, from.toISOString().slice(0, 10), resume.toISOString().slice(0, 10));
+      } else {
+        const occurrence = item.occurrences.find(value => value.id === occurrenceId);
+        if (!occurrence) return;
+        await deliveryDayPlanService.skip(item.id, occurrence.service_date, occurrence.meal_type);
+      }
+      showToast(action === 'skip' ? 'Delivery moved' : action === 'pause' ? 'Plan paused for 7 days' : 'Plan resumed', 'Your updated calendar is shown below.', 'success');
+      await load();
+    } catch (reason) {
+      showToast('Plan was not updated', reason instanceof Error ? reason.message : 'Try again shortly.', 'error');
+    } finally { setBusy(null); }
+  };
 
   return <div className="min-h-[80vh] bg-[#FAF8F5] py-5 sm:py-12">
     <div className="mx-auto max-w-6xl space-y-7 px-4 sm:space-y-9 sm:px-6">
@@ -67,6 +87,7 @@ export const DeliveryDayPlansPage: React.FC = () => {
             {item.current_quote.status === 'offered' && <><p className="mt-3 text-xs leading-5 text-stone-600">Accept only after checking every service, quantity and amount. Acceptance does not charge you.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><button type="button" disabled={busy === item.id} onClick={() => void respond(item, 'accept')} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#0D6E44] px-4 text-sm font-black text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />Accept exact quote</button><button type="button" disabled={busy === item.id} onClick={() => void respond(item, 'decline')} className="min-h-11 rounded-xl border border-red-200 bg-white px-4 text-sm font-bold text-red-700 disabled:opacity-50">Decline and close request</button></div></>}
             {item.current_quote.status === 'accepted' && <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold text-emerald-900"><CheckCircle2 className="mr-1 inline h-4 w-4" />Accepted. Payment is still pending; no automatic charge was made.</p>}
           </div>}
+          {['active', 'paused', 'completed', 'cancelled'].includes(item.status) && <ActivePlanDetails item={item} busy={busy === item.id} onAction={runPlanAction} />}
         </article>)}</div>
       </section>}
 
@@ -88,3 +109,30 @@ export const DeliveryDayPlansPage: React.FC = () => {
 };
 
 const Step = ({ icon: Icon, title, text }: { icon: typeof CalendarDays; title: string; text: string }) => <div className="flex gap-3"><Icon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-800" /><div><h3 className="font-black text-emerald-950">{title}</h3><p className="mt-1 text-xs leading-5 text-emerald-900/75">{text}</p></div></div>;
+
+const occurrenceLabel: Record<string, string> = {
+  planned: 'Scheduled', order_created: 'Kitchen confirmed', fulfilled: 'Delivered',
+  customer_skipped: 'Moved by you', kitchen_cancelled: 'Moved by Kitchen', cancelled: 'Cancelled',
+};
+const ActivePlanDetails = ({ item, busy, onAction }: {
+  item: DeliveryDayPlan; busy: boolean;
+  onAction: (item: DeliveryDayPlan, action: 'skip' | 'pause' | 'resume', occurrenceId?: string) => Promise<void>;
+}) => {
+  const upcoming = item.occurrences.filter(entry => entry.can_move).slice(0, 8);
+  const recent = item.occurrences.filter(entry => !entry.can_move).slice(-6).reverse();
+  return <div className="mt-4 space-y-4 border-t border-stone-100 pt-4">
+    <div className="grid gap-2 sm:grid-cols-3">{item.meal_types.map(type => {
+      const progress = item.service_progress[type];
+      return <div key={type} className="rounded-xl bg-stone-50 p-3"><p className="text-xs font-black capitalize text-stone-900">{type}</p><p className="mt-1 text-sm font-bold text-emerald-800">{progress?.fulfilled ?? 0} of {progress?.entitled ?? item.delivery_days} delivered</p><p className="mt-1 text-[11px] text-stone-500">{progress?.upcoming ?? 0} scheduled · {progress?.remaining ?? 0} not reserved</p></div>;
+    })}</div>
+    {(item.status === 'active' || item.status === 'paused') && <div className="flex flex-wrap gap-2">
+      {item.status === 'active' ? <button type="button" disabled={busy} onClick={() => void onAction(item, 'pause')} className="flex min-h-10 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 text-xs font-black text-amber-900 disabled:opacity-50"><Pause className="h-4 w-4" />Pause next 7 days</button>
+        : <button type="button" disabled={busy} onClick={() => void onAction(item, 'resume')} className="flex min-h-10 items-center gap-2 rounded-xl bg-emerald-700 px-3 text-xs font-black text-white disabled:opacity-50"><Play className="h-4 w-4" />Resume plan</button>}
+      {item.resume_on_date && <span className="self-center text-xs font-bold text-stone-500">Auto-resume {item.resume_on_date}</span>}
+    </div>}
+    <div><h4 className="text-sm font-black text-stone-900">Upcoming deliveries</h4>{upcoming.length === 0 ? <p className="mt-2 text-xs text-stone-500">No movable delivery is currently scheduled.</p> : <div className="mt-2 grid gap-2 sm:grid-cols-2">{upcoming.map(entry => <div key={entry.id} className="flex items-center justify-between gap-2 rounded-xl border border-stone-200 p-3"><div><p className="text-xs font-black capitalize">{entry.meal_type}</p><p className="text-[11px] text-stone-500">{entry.service_date} · {occurrenceLabel[entry.status]}</p></div><button type="button" disabled={busy} onClick={() => void onAction(item, 'skip', entry.id)} className="rounded-lg border border-stone-300 px-2.5 py-1.5 text-[11px] font-black text-stone-700 disabled:opacity-50">Move</button></div>)}</div>}</div>
+    {recent.length > 0 && <details className="rounded-xl bg-stone-50 p-3"><summary className="cursor-pointer text-xs font-black text-stone-800">Delivery history</summary><div className="mt-3 space-y-2">{recent.map(entry => <div key={entry.id} className="flex justify-between text-xs"><span className="capitalize text-stone-600">{entry.service_date} · {entry.meal_type}</span><strong className="text-stone-800">{occurrenceLabel[entry.status]}</strong></div>)}</div></details>}
+    {item.latest_decision && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><strong className="block">Plan decision</strong>{item.latest_decision.customer_message}{item.latest_decision.amount > 0 && ` · ${money(item.latest_decision.amount)}`}</div>}
+    {item.commercial_policy?.cancellation_summary && <p className="text-[11px] leading-5 text-stone-500"><Clock3 className="mr-1 inline h-3.5 w-3.5" />{item.commercial_policy.cancellation_summary}</p>}
+  </div>;
+};

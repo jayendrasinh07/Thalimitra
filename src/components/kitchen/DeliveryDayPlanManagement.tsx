@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { BadgeIndianRupee, RefreshCw, ShieldCheck } from 'lucide-react';
+import { BadgeIndianRupee, BookOpenCheck, RefreshCw, ShieldCheck } from 'lucide-react';
 import {
   deliveryDayPlanManagementService,
   type DeliveryDayPlanManagementDocument,
@@ -15,6 +15,10 @@ type QuoteDraft = {
   validUntil: string;
 };
 type PaymentDraft = { reference: string; method: 'manual_upi' | 'manual_bank' | 'cash' };
+type DecisionDraft = {
+  type: 'cancelled_no_payment' | 'refund_due' | 'no_refund' | 'refund_completed';
+  amount: string; customerMessage: string; internalNote: string; reference: string;
+};
 
 const money = (value: number) => new Intl.NumberFormat('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: 2,
@@ -33,6 +37,7 @@ export const DeliveryDayPlanManagement = () => {
   const [document, setDocument] = useState<DeliveryDayPlanManagementDocument | null>(null);
   const [drafts, setDrafts] = useState<Record<string, QuoteDraft>>({});
   const [payments, setPayments] = useState<Record<string, PaymentDraft>>({});
+  const [decisions, setDecisions] = useState<Record<string, DecisionDraft>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +94,47 @@ export const DeliveryDayPlanManagement = () => {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Payment was not verified.'); }
     finally { setBusy(null); }
   };
+  const saveTemplate = async (template: DeliveryDayPlanManagementDocument['templates'][number]) => {
+    if (busy) return;
+    setBusy(`template:${template.code}`); setError(null); setNotice(null);
+    try {
+      await deliveryDayPlanManagementService.updateTemplate({
+        code: template.code, name: template.name, description: template.description,
+        isActive: !template.is_active,
+      });
+      setNotice(`${template.name} is now ${template.is_active ? 'hidden' : 'available'} to customers.`);
+      await load();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Plan catalog was not updated.'); }
+    finally { setBusy(null); }
+  };
+  const savePolicy = async () => {
+    if (!document || busy) return;
+    setBusy('policy'); setError(null); setNotice(null);
+    try {
+      await deliveryDayPlanManagementService.updatePolicy({
+        maxDiscountPercent: document.policy.max_discount_percent,
+        maxDeliveryFee: document.policy.max_delivery_fee,
+        cancellationSummary: document.policy.customer_cancellation_summary,
+      });
+      setNotice('Commercial limits and customer cancellation wording saved.'); await load();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Commercial policy was not updated.'); }
+    finally { setBusy(null); }
+  };
+  const recordDecision = async (item: ManagedDeliveryDayPlan) => {
+    if (busy) return;
+    const draft = decisions[item.id] ?? { type: item.payment ? 'refund_due' : 'cancelled_no_payment', amount: '0', customerMessage: '', internalNote: '', reference: '' };
+    if (draft.customerMessage.trim().length < 5) { setError('Add clear customer-safe wording for this decision.'); return; }
+    setBusy(`decision:${item.id}`); setError(null); setNotice(null);
+    try {
+      await deliveryDayPlanManagementService.recordDecision({
+        subscriptionId: item.id, decisionType: draft.type, amount: Number(draft.amount || 0),
+        customerMessage: draft.customerMessage, internalNote: draft.internalNote,
+        externalReference: draft.reference,
+      });
+      setNotice('Lifecycle decision recorded in the immutable history.'); await load();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Lifecycle decision was not recorded.'); }
+    finally { setBusy(null); }
+  };
 
   const items = document?.subscriptions ?? [];
   const needsQuote = items.filter(item => item.status === 'requested' || item.status === 'quoted').length;
@@ -102,6 +148,11 @@ export const DeliveryDayPlanManagement = () => {
 
     {error && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">{error}</p>}
     {notice && <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">{notice}</p>}
+
+    {document && <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6"><div className="flex items-start gap-3"><BookOpenCheck className="mt-1 h-5 w-5 text-emerald-700" /><div><h2 className="text-xl font-black text-stone-900">Customer plan catalog</h2><p className="mt-1 text-sm text-stone-500">Publish or hide a plan without deleting its history.</p></div></div><div className="mt-4 space-y-2">{document.templates.map(template => <div key={template.code} className="flex items-center justify-between gap-3 rounded-2xl bg-stone-50 p-3"><div><p className="text-sm font-black text-stone-900">{template.delivery_days} days · {template.name}</p><p className="text-xs text-stone-500">{template.is_active ? 'Visible to customers' : 'Hidden from customers'}</p></div><button type="button" disabled={!!busy} onClick={() => void saveTemplate(template)} className={`min-h-10 rounded-xl px-3 text-xs font-black ${template.is_active ? 'border border-red-200 bg-white text-red-700' : 'bg-emerald-700 text-white'}`}>{template.is_active ? 'Hide' : 'Publish'}</button></div>)}</div></div>
+      <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6"><h2 className="text-xl font-black text-stone-900">Pilot commercial policy</h2><p className="mt-1 text-sm text-stone-500">These server limits apply to every new quote. Tax is disabled until a separate legal review.</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><MoneyInput label="Maximum discount %" value={String(document.policy.max_discount_percent)} onChange={value => setDocument(current => current ? ({ ...current, policy: { ...current.policy, max_discount_percent: Number(value) } }) : current)} /><MoneyInput label="Maximum delivery fee" value={String(document.policy.max_delivery_fee)} onChange={value => setDocument(current => current ? ({ ...current, policy: { ...current.policy, max_delivery_fee: Number(value) } }) : current)} /></div><label className="mt-3 block text-xs font-bold text-stone-600">Customer cancellation wording<textarea value={document.policy.customer_cancellation_summary} onChange={event => setDocument(current => current ? ({ ...current, policy: { ...current.policy, customer_cancellation_summary: event.target.value } }) : current)} rows={3} className="mt-1 block w-full rounded-xl border border-stone-200 px-3 py-2 text-sm" /></label><button type="button" disabled={!!busy} onClick={() => void savePolicy()} className="mt-4 min-h-11 rounded-xl bg-stone-900 px-4 text-sm font-black text-white disabled:opacity-40">Save policy</button></div>
+    </section>}
 
     <section className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
       <h2 className="text-xl font-black text-stone-900">Plan request queue</h2><p className="mt-1 text-sm text-stone-500">Customer details are shown only in the protected Operations app.</p>
@@ -119,6 +170,7 @@ export const DeliveryDayPlanManagement = () => {
           {canQuote && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black text-amber-950">{item.status === 'quoted' ? 'Replace current quote' : 'Create itemized quote'}</p><div className="mt-3 grid gap-3 sm:grid-cols-3">{item.meal_types.map(type => <div key={type}><MoneyInput label={`${type} price per meal`} value={draft.prices[type] ?? ''} onChange={value => updateDraft(item.id, current => ({ ...current, prices: { ...current.prices, [type]: value } }))} /></div>)}</div><div className="mt-3 grid gap-3 sm:grid-cols-4"><MoneyInput label="Total delivery fee" value={draft.deliveryFee} onChange={value => updateDraft(item.id, current => ({ ...current, deliveryFee: value }))} /><MoneyInput label="Plan discount" value={draft.discount} onChange={value => updateDraft(item.id, current => ({ ...current, discount: value }))} /><MoneyInput label="Tax" value={draft.tax} onChange={value => updateDraft(item.id, current => ({ ...current, tax: value }))} /><label className="text-xs font-bold text-stone-600">Valid until<input type="datetime-local" value={draft.validUntil} onChange={event => updateDraft(item.id, current => ({ ...current, validUntil: event.target.value }))} className="mt-1 block min-h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-bold" /></label></div><button type="button" disabled={busy === item.id} onClick={() => void offer(item)} className="mt-4 flex min-h-11 items-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-black text-stone-950 disabled:opacity-40"><BadgeIndianRupee className="h-4 w-4" />{item.status === 'quoted' ? 'Offer revised quote' : 'Offer quote'}</button><p className="mt-2 text-xs font-semibold text-amber-900">This sends no payment request. The customer must accept this exact quote first.</p></div>}
           {item.status === 'accepted' && <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-sm font-black text-emerald-950">Verify full payment</p><p className="mt-1 text-xs leading-5 text-emerald-900">Use this only after the exact accepted total is visible in the business account or cash has been received.</p><div className="mt-3 grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)]"><label className="text-xs font-bold text-stone-600">Payment method<select value={payments[item.id]?.method ?? 'manual_upi'} onChange={event => setPayments(current => ({ ...current, [item.id]: { reference: current[item.id]?.reference ?? '', method: event.target.value as PaymentDraft['method'] } }))} className="mt-1 block min-h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-bold"><option value="manual_upi">UPI</option><option value="manual_bank">Bank transfer</option><option value="cash">Cash received</option></select></label><label className="text-xs font-bold text-stone-600">Verified reference<input type="text" maxLength={120} value={payments[item.id]?.reference ?? ''} onChange={event => setPayments(current => ({ ...current, [item.id]: { method: current[item.id]?.method ?? 'manual_upi', reference: event.target.value } }))} placeholder="Transaction or receipt reference" className="mt-1 block min-h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-bold" /></label></div><button type="button" disabled={busy === item.id || (payments[item.id]?.reference.trim().length ?? 0) < 3} onClick={() => void activate(item)} className="mt-4 flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-black text-white disabled:opacity-40"><ShieldCheck className="h-4 w-4" />Verify payment & activate</button></div>}
           {item.payment && <p className="mt-4 rounded-xl bg-emerald-100 p-3 text-xs font-bold text-emerald-900">Verified {money(item.payment.amount)} · {item.payment.payment_method.replace('_', ' ')} · {date(item.payment.verified_at)}</p>}
+          {['accepted','payment_pending','active','paused','cancelled'].includes(item.status) && <details className="mt-4 rounded-2xl border border-stone-200 bg-white p-4"><summary className="cursor-pointer text-sm font-black text-stone-900">Cancellation & refund decision</summary>{(() => { const draft = decisions[item.id] ?? { type: item.payment ? 'refund_due' : 'cancelled_no_payment', amount: '0', customerMessage: '', internalNote: '', reference: '' }; const update = (next: Partial<DecisionDraft>) => setDecisions(current => ({ ...current, [item.id]: { ...draft, ...next } })); return <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold text-stone-600">Decision<select value={draft.type} onChange={event => update({ type: event.target.value as DecisionDraft['type'] })} className="mt-1 block min-h-10 w-full rounded-xl border border-stone-200 px-3 text-sm"><option value="cancelled_no_payment">Cancel · no payment received</option><option value="refund_due">Cancel · refund approved</option><option value="no_refund">Cancel · no refund</option><option value="refund_completed">Refund completed</option></select></label><MoneyInput label="Amount" value={draft.amount} onChange={value => update({ amount: value })} /><label className="text-xs font-bold text-stone-600 sm:col-span-2">Customer message<textarea rows={2} value={draft.customerMessage} onChange={event => update({ customerMessage: event.target.value })} className="mt-1 block w-full rounded-xl border border-stone-200 px-3 py-2 text-sm" /></label><label className="text-xs font-bold text-stone-600">Internal note<textarea rows={2} value={draft.internalNote} onChange={event => update({ internalNote: event.target.value })} className="mt-1 block w-full rounded-xl border border-stone-200 px-3 py-2 text-sm" /></label><label className="text-xs font-bold text-stone-600">Refund reference<input value={draft.reference} onChange={event => update({ reference: event.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-stone-200 px-3 text-sm" /></label><button type="button" disabled={!!busy} onClick={() => void recordDecision(item)} className="min-h-11 rounded-xl bg-red-700 px-4 text-sm font-black text-white disabled:opacity-40 sm:col-span-2">Record reviewed decision</button></div>; })()}{item.decisions.length > 0 && <div className="mt-4 border-t border-stone-100 pt-3">{item.decisions.map(decision => <p key={decision.id} className="mt-2 text-xs text-stone-600"><strong className="capitalize text-stone-900">{decision.decision_type.replaceAll('_',' ')}</strong> · {money(decision.amount)} · {date(decision.created_at)}</p>)}</div>}</details>}
         </article>;
       })}</div>
     </section>

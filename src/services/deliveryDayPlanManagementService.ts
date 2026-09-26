@@ -21,10 +21,30 @@ export interface ManagedDeliveryDayPlan extends DeliveryDayPlan {
     status: 'verified';
     verified_at: string;
   };
+  decisions: Array<{
+    id: string;
+    decision_type: 'cancelled_no_payment' | 'refund_due' | 'no_refund' | 'refund_completed';
+    amount: number;
+    customer_message: string;
+    internal_note: string | null;
+    external_reference: string | null;
+    created_at: string;
+  }>;
 }
 
 export interface DeliveryDayPlanManagementDocument {
   subscriptions: ManagedDeliveryDayPlan[];
+  templates: Array<{
+    code: string; name: string; description: string; delivery_days: 7 | 15 | 30;
+    is_active: boolean; display_order: number;
+  }>;
+  policy: {
+    max_discount_percent: number;
+    max_delivery_fee: number;
+    tax_collection_enabled: boolean;
+    customer_cancellation_summary: string;
+    updated_at: string;
+  };
 }
 
 const rpc = async (name: string, args?: Record<string, unknown>): Promise<any> => {
@@ -51,14 +71,28 @@ const parseManagedPlan = (value: any): ManagedDeliveryDayPlan => {
     ...plan,
     customer: value.customer,
     payment: value.payment ? { ...value.payment, amount: Number(value.payment.amount) } : null,
+    decisions: Array.isArray(value.decisions) ? value.decisions.map((decision: any) => ({
+      ...decision, amount: Number(decision.amount),
+    })) : [],
   };
 };
 
 export const deliveryDayPlanManagementService = {
   async getManagement(): Promise<DeliveryDayPlanManagementDocument> {
     const data = await rpc('get_delivery_day_plan_management');
-    if (!data || !Array.isArray(data.subscriptions)) throw new DeliveryDayPlanError('INVALID_RESPONSE');
-    return { subscriptions: data.subscriptions.map(parseManagedPlan) };
+    if (!data || !Array.isArray(data.subscriptions) || !Array.isArray(data.templates) || !data.policy) {
+      throw new DeliveryDayPlanError('INVALID_RESPONSE');
+    }
+    return {
+      subscriptions: data.subscriptions.map(parseManagedPlan),
+      templates: data.templates.map((template: any) => ({ ...template,
+        delivery_days: Number(template.delivery_days), display_order: Number(template.display_order),
+      })),
+      policy: { ...data.policy,
+        max_discount_percent: Number(data.policy.max_discount_percent),
+        max_delivery_fee: Number(data.policy.max_delivery_fee),
+      },
+    };
   },
 
   async offerQuote(input: {
@@ -88,6 +122,34 @@ export const deliveryDayPlanManagementService = {
       p_subscription_id: input.subscriptionId,
       p_payment_reference: input.paymentReference.trim(),
       p_payment_method: input.paymentMethod,
+    }));
+  },
+  async updateTemplate(input: { code: string; name: string; description: string; isActive: boolean }) {
+    return rpc('update_delivery_day_plan_template', {
+      p_code: input.code, p_name: input.name, p_description: input.description,
+      p_is_active: input.isActive,
+    });
+  },
+  async updatePolicy(input: { maxDiscountPercent: number; maxDeliveryFee: number; cancellationSummary: string }) {
+    return rpc('update_delivery_day_plan_policy', {
+      p_max_discount_percent: input.maxDiscountPercent,
+      p_max_delivery_fee: input.maxDeliveryFee,
+      p_customer_cancellation_summary: input.cancellationSummary,
+    });
+  },
+  async recordDecision(input: {
+    subscriptionId: string;
+    decisionType: 'cancelled_no_payment' | 'refund_due' | 'no_refund' | 'refund_completed';
+    amount: number;
+    customerMessage: string;
+    internalNote?: string;
+    externalReference?: string;
+  }): Promise<ManagedDeliveryDayPlan> {
+    return parseManagedPlan(await rpc('record_delivery_day_plan_decision', {
+      p_subscription_id: input.subscriptionId, p_decision_type: input.decisionType,
+      p_amount: input.amount, p_customer_message: input.customerMessage,
+      p_internal_note: input.internalNote?.trim() || null,
+      p_external_reference: input.externalReference?.trim() || null,
     }));
   },
 };

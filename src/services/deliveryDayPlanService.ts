@@ -5,6 +5,29 @@ export type DeliveryDayPlanStatus = 'requested' | 'quoted' | 'accepted' | 'payme
 export type DeliveryDayPlanPaymentStatus = 'pending' | 'paid' | 'refunded' | 'partially_refunded';
 export type DeliveryDayPlanQuoteStatus = 'draft' | 'offered' | 'accepted' | 'declined' | 'expired' | 'superseded';
 export type DeliveryDayPlanQuoteItemType = 'service' | 'delivery' | 'discount' | 'tax' | 'adjustment';
+export type DeliveryDayPlanOccurrenceStatus = 'planned' | 'order_created' | 'fulfilled' | 'customer_skipped' | 'kitchen_cancelled' | 'cancelled';
+
+export interface DeliveryDayPlanOccurrence {
+  id: string;
+  meal_type: ServiceMealType;
+  service_date: string;
+  status: DeliveryDayPlanOccurrenceStatus;
+  can_move: boolean;
+}
+
+export interface DeliveryDayPlanServiceProgress {
+  entitled: number;
+  remaining: number;
+  fulfilled: number;
+  upcoming: number;
+}
+
+export interface DeliveryDayPlanDecision {
+  decision_type: 'cancelled_no_payment' | 'refund_due' | 'no_refund' | 'refund_completed';
+  amount: number;
+  customer_message: string;
+  created_at: string;
+}
 
 export interface DeliveryDayPlanQuoteItem {
   id: string;
@@ -74,6 +97,11 @@ export interface DeliveryDayPlan {
   weekdays_by_service: Partial<Record<ServiceMealType, number[]>>;
   meals_per_delivery_day: number;
   total_meal_occurrences: number;
+  resume_on_date: string | null;
+  service_progress: Partial<Record<ServiceMealType, DeliveryDayPlanServiceProgress>>;
+  occurrences: DeliveryDayPlanOccurrence[];
+  latest_decision: DeliveryDayPlanDecision | null;
+  commercial_policy: { cancellation_summary: string } | null;
   current_quote: DeliveryDayPlanQuote | null;
   accepted_quote: DeliveryDayPlanQuote | null;
   created_at: string;
@@ -154,11 +182,37 @@ export const parseDeliveryDayPlan = (value: any): DeliveryDayPlan => {
     || !Number.isInteger(Number(value.total_meal_occurrences))
     || typeof value.preferred_start_date !== 'string' || typeof value.created_at !== 'string'
     || typeof value.updated_at !== 'string') throw new DeliveryDayPlanError('INVALID_RESPONSE');
+  const progress = value.service_progress ?? {};
+  const occurrences = value.occurrences ?? [];
+  if (typeof progress !== 'object' || progress === null || !Array.isArray(occurrences)) {
+    throw new DeliveryDayPlanError('INVALID_RESPONSE');
+  }
+  for (const [type, entry] of Object.entries(progress) as [ServiceMealType, any][]) {
+    if (!mealTypes.includes(type) || !entry || ['entitled', 'remaining', 'fulfilled', 'upcoming']
+      .some(field => !Number.isInteger(Number(entry[field])) || Number(entry[field]) < 0)) {
+      throw new DeliveryDayPlanError('INVALID_RESPONSE');
+    }
+  }
+  const parsedOccurrences = occurrences.map((entry: any): DeliveryDayPlanOccurrence => {
+    if (!entry || typeof entry.id !== 'string' || !mealTypes.includes(entry.meal_type)
+      || typeof entry.service_date !== 'string'
+      || !['planned', 'order_created', 'fulfilled', 'customer_skipped', 'kitchen_cancelled', 'cancelled'].includes(entry.status)
+      || typeof entry.can_move !== 'boolean') throw new DeliveryDayPlanError('INVALID_RESPONSE');
+    return entry;
+  });
   return {
     ...value,
     delivery_days: Number(value.delivery_days),
     meals_per_delivery_day: Number(value.meals_per_delivery_day),
     total_meal_occurrences: Number(value.total_meal_occurrences),
+    resume_on_date: value.resume_on_date ?? null,
+    service_progress: Object.fromEntries(Object.entries(progress).map(([type, entry]: [string, any]) => [type, {
+      entitled: Number(entry.entitled), remaining: Number(entry.remaining),
+      fulfilled: Number(entry.fulfilled), upcoming: Number(entry.upcoming),
+    }])),
+    occurrences: parsedOccurrences,
+    latest_decision: value.latest_decision ? { ...value.latest_decision, amount: Number(value.latest_decision.amount) } : null,
+    commercial_policy: value.commercial_policy ?? null,
     current_quote: parseQuote(value.current_quote),
     accepted_quote: parseQuote(value.accepted_quote),
   } as DeliveryDayPlan;
@@ -244,5 +298,23 @@ export const deliveryDayPlanService = {
       p_quote_id: quoteId,
       p_decision: decision,
     }));
+  },
+  async skip(subscriptionId: string, serviceDate: string, mealType?: ServiceMealType): Promise<void> {
+    await rpc('skip_delivery_day_plan', {
+      p_subscription_id: subscriptionId, p_service_date: serviceDate,
+      p_meal_type: mealType ?? null, p_reason: 'Moved by customer',
+      p_idempotency_key: crypto.randomUUID(),
+    });
+  },
+  async pause(subscriptionId: string, pauseFrom: string, resumeOn: string): Promise<void> {
+    await rpc('pause_delivery_day_plan', {
+      p_subscription_id: subscriptionId, p_pause_from: pauseFrom, p_resume_on: resumeOn,
+      p_reason: 'Paused by customer', p_idempotency_key: crypto.randomUUID(),
+    });
+  },
+  async resume(subscriptionId: string): Promise<void> {
+    await rpc('resume_delivery_day_plan', {
+      p_subscription_id: subscriptionId, p_idempotency_key: crypto.randomUUID(),
+    });
   },
 };
