@@ -41,6 +41,7 @@ import { istDate } from '../services/availabilityEngine';
 import { kitchenService, type KitchenOrder, type KitchenRealtimeStatus, type KitchenShift, type KitchenStatus } from '../services/kitchenService';
 import { createKitchenQueue, emptyKitchenQueue, type KitchenQueueState } from '../services/kitchenQueue';
 import { kitchenOrderAge, newConfirmedOrders } from '../services/kitchenAlertEngine';
+import { OperationsNotifications } from '../components/kitchen/OperationsNotifications';
 
 type KitchenWorkspace = 'overview' | 'catalog' | 'menu' | 'orders' | 'offers' | 'subscriptions' | 'management' | 'reports';
 type KitchenSort = 'delivery' | 'oldest' | 'newest';
@@ -306,6 +307,7 @@ export const KitchenDashboard: React.FC = () => {
               <p className="mt-1 max-w-2xl text-sm text-stone-500">{page.description}</p>
             </div>
             <div className="flex items-center gap-3">
+              <OperationsNotifications onNavigate={target => setWorkspace(target === 'kitchen_management' ? 'management' : target === 'kitchen_dashboard' ? 'orders' : 'overview')} />
               <div className="hidden rounded-2xl bg-stone-50 px-4 py-3 text-right sm:block"><p className="text-xs font-semibold text-stone-500">Today</p><p className="text-sm font-bold text-stone-800">{displayDate}</p></div>
               <button type="button" onClick={() => void signOutUser()} className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 lg:hidden"><LogOut className="h-4 w-4" />Sign out</button>
             </div>

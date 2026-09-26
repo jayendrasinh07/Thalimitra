@@ -1,6 +1,7 @@
 import { ArrowLeft, CalendarDays, ClipboardList, House, MapPin, Menu as MenuIcon, UserRound } from 'lucide-react';
 import { useApp, type ActiveTab } from '../../context/AppContext';
 import { getAddressCompactLine } from '../../utils/addressDisplay';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 const tabs: Array<{ id: ActiveTab; label: string; icon: typeof House }> = [
   { id: 'home', label: 'Home', icon: House },
@@ -16,7 +17,7 @@ export const NativeNavigation = () => {
   const confirmedAddress = centralLocation?.confirmedAddress || (activeDeliveryAddress?.id ? activeDeliveryAddress : null);
   const area = confirmedAddress ? getAddressCompactLine(confirmedAddress) : centralLocation?.formattedAddress || centralLocation?.area || 'Set location';
   const title = activeTab === 'home' ? 'Thalimitra' : activeTab === 'todays_menu' ? 'Menu' :
-    activeTab === 'order_history' ? 'Orders' : activeTab === 'customer_dashboard' ? 'Account' : activeTab === 'delivery_addresses' ? 'Delivery addresses' :
+    activeTab === 'order_history' ? 'Orders' : activeTab === 'customer_dashboard' ? 'Account' : activeTab === 'delivery_addresses' ? 'Delivery addresses' : activeTab === 'notifications' ? 'Notifications' :
       activeTab === 'order_once' ? 'Place order' : activeTab === 'contact' ? 'Help & support' :
         activeTab === 'meal_plans' || activeTab === 'my_subscription' ? 'Meal plans' :
         activeTab === 'coverage' ? 'Delivery areas' : 'Thalimitra';
@@ -36,6 +37,7 @@ export const NativeNavigation = () => {
           <div className="text-lg font-black leading-tight text-stone-900">{title}</div>
           {activeTab === 'home' && <div className="text-xs font-semibold text-emerald-800">Khana jo roz apna lage.</div>}
         </div>
+        <NotificationBell compact />
         {(activeTab === 'home' || activeTab === 'todays_menu') &&
           <button type="button" onClick={() => setIsLocationModalOpen(true)} aria-label={`Delivery location: ${area}`}
             className="flex min-h-11 max-w-[48%] items-center gap-1.5 rounded-2xl bg-emerald-50 px-3 text-xs font-bold text-emerald-900">

@@ -11,6 +11,7 @@
 import { LocationState, NotificationPermissionState } from '../types';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
+import { notificationService } from './notificationService';
 
 export interface GeolocationResult {
   success: boolean;
@@ -151,7 +152,7 @@ class PermissionManager {
    * Check Notification permission status.
    */
   public checkNotificationPermission(): NotificationPermissionState {
-    if (Capacitor.isNativePlatform()) return 'unsupported';
+    if (Capacitor.isNativePlatform()) return 'default';
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return 'unsupported';
     }
@@ -163,7 +164,10 @@ class PermissionManager {
    * Request Notification permission contextually (only post-order confirmation).
    */
   public async requestNotificationPermission(): Promise<NotificationPermissionState> {
-    if (Capacitor.isNativePlatform()) return 'unsupported';
+    if (Capacitor.isNativePlatform()) {
+      const granted = await notificationService.requestNativePermission();
+      return granted ? 'granted' : 'denied';
+    }
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return 'unsupported';
     }

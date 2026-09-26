@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "117653049490",
+    "project_id": "thalimitra-prod",
+    "storage_bucket": "thalimitra-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:117653049490:android:990e25b321d8646975564b",
+        "android_client_info": {
+          "package_name": "com.thalimitra.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjYXTGmNZOzg2Bq6VjhV5X_G7FuOyq19g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:117653049490:android:85f0a7678fc31b0175564b",
+        "android_client_info": {
+          "package_name": "com.thalimitra.customer.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjYXTGmNZOzg2Bq6VjhV5X_G7FuOyq19g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

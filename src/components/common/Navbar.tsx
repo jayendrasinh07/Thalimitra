@@ -12,6 +12,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { getAddressCompactLine } from '../../utils/addressDisplay';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -165,6 +166,8 @@ export const Navbar: React.FC = () => {
               )}
               <span className="truncate">{locationLabel}</span>
             </button>
+
+            <NotificationBell compact />
 
             {/* Account / Sign In */}
             {currentUser ? (

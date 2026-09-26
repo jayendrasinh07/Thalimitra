@@ -22,6 +22,7 @@ import { MobileBottomBar } from './components/common/MobileBottomBar';
 import { NativeNavigation } from './components/native/NativeNavigation';
 import { NativeAccountPage } from './pages/NativeAccountPage';
 import { CustomerPageSkeleton } from './components/common/CustomerLoadingSkeleton';
+import { PushNotificationBridge } from './components/notifications/PushNotificationBridge';
 
 if (Capacitor.isNativePlatform()) document.documentElement.classList.add('native-app');
 
@@ -40,6 +41,7 @@ const QualityStandardsPage = React.lazy(() => import('./pages/QualityStandardsPa
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then((module) => ({ default: module.ContactPage })));
 const OrderHistoryPage = React.lazy(() => import('./pages/OrderHistoryPage').then((module) => ({ default: module.OrderHistoryPage })));
 const DeliveryAddressesPage = React.lazy(() => import('./pages/DeliveryAddressesPage').then((module) => ({ default: module.DeliveryAddressesPage })));
+const NotificationsPage = React.lazy(() => import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage })));
 const PasswordRecoveryPage = React.lazy(() => import('./pages/PasswordRecoveryPage').then((module) => ({ default: module.PasswordRecoveryPage })));
 const OrderOnceModal = React.lazy(() => import('./components/modals/OrderOnceModal').then((module) => ({ default: module.OrderOnceModal })));
 const TraceabilityModal = React.lazy(() => import('./components/modals/TraceabilityModal').then((module) => ({ default: module.TraceabilityModal })));
@@ -75,7 +77,7 @@ const AndroidBackHandler: React.FC = () => {
       if (isSubscribeModalOpen) return setIsSubscribeModalOpen(false);
       if (isLegalModalOpen) return setIsLegalModalOpen(false);
       if (activeTab === 'order_once') return window.dispatchEvent(new Event('thalimitra:native-back'));
-      if (activeTab === 'contact' || activeTab === 'coverage' || activeTab === 'delivery_addresses') return setActiveTab('customer_dashboard');
+      if (activeTab === 'contact' || activeTab === 'coverage' || activeTab === 'delivery_addresses' || activeTab === 'notifications') return setActiveTab('customer_dashboard');
       if (activeTab !== 'home') return setActiveTab('home');
       void CapacitorApp.exitApp();
     }).then(listener => {
@@ -178,6 +180,8 @@ const MainContent: React.FC = () => {
         return <OrderHistoryPage />;
       case 'delivery_addresses':
         return <DeliveryAddressesPage />;
+      case 'notifications':
+        return <NotificationsPage />;
       default:
         return <Home />;
     }
@@ -218,6 +222,7 @@ export default function App() {
     <AppProvider>
       <AndroidBackHandler />
       <AndroidRecoveryLinkHandler />
+      <PushNotificationBridge />
       <MainContent />
     </AppProvider>
   );

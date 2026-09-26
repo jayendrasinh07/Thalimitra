@@ -8,7 +8,7 @@ DECLARE
   v_subscription UUID;
   v_quote UUID;
   v_result JSONB;
-  v_start DATE := current_date + 700;
+  v_start DATE := current_date + 2;
 BEGIN
   SELECT role.user_id INTO v_admin FROM public.user_roles role
   WHERE role.role='admin' ORDER BY role.created_at LIMIT 1;

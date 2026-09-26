@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, CircleHelp, LogOut, MapPin, ShieldCheck, ShoppingBag, UserRound } from 'lucide-react';
+import { ArrowRight, Bell, CalendarDays, CircleHelp, LogOut, MapPin, ShieldCheck, ShoppingBag, UserRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getAddressCompactLine } from '../utils/addressDisplay';
 
@@ -20,6 +20,7 @@ export const NativeAccountPage = () => {
       <AccountRow icon={ShoppingBag} label="My orders" detail="Status, help and past meals" onClick={() => setActiveTab('order_history')} />
       <AccountRow icon={CalendarDays} label="Meal plans" detail="Request a routine or track its approval" onClick={() => setActiveTab('meal_plans')} />
       <AccountRow icon={MapPin} label="Delivery addresses" detail={currentUser ? isCustomerDataLoading ? 'Loading your saved addresses…' : savedAddresses.length ? `${savedAddresses.length} saved · ${getAddressCompactLine(activeDeliveryAddress)}` : 'Add your first delivery address' : 'Choose your delivery location'} onClick={() => setActiveTab('delivery_addresses')} />
+      <AccountRow icon={Bell} label="Notifications" detail="Order, plan and delivery-area updates" onClick={() => setActiveTab('notifications')} />
     </section>
 
     <section aria-label="Help and information" className="overflow-hidden rounded-3xl border border-stone-200 bg-white">

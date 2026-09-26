@@ -45,6 +45,7 @@ import { addressService } from '../services/addressService';
 import { orderService } from '../services/orderService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { rememberOrderOrigin } from '../services/orderNavigation';
+import { notificationService } from '../services/notificationService';
 import { UserRoleType, CustomerSegmentType } from '../types/database.types';
 
 export type ActiveTab = 
@@ -70,6 +71,7 @@ export type ActiveTab =
   | 'delivery_addresses'
   | 'delivery_tracking'
   | 'order_history'
+  | 'notifications'
   | 'profile'
   | 'traceability'
   | 'password_recovery'
@@ -438,6 +440,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const signOutUser = async () => {
+    try { await notificationService.unregisterCurrentDevice(); } catch { /* Sign-out must still complete. */ }
     const result=await authService.signOut();
     if(result.error){showToast('Sign out failed',result.error.message,'error');return;}
     ++authGeneration.current;authIdentity.current=null;clearCustomerData();setActiveTab(isOpsBuild ? 'kitchen_dashboard' : 'home');
