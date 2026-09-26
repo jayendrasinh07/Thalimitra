@@ -69,7 +69,11 @@ assert.match(context, /roles\.includes\('customer'\)\s*&&\s*!hasOperationsRole/)
 assert.match(config, /connect\.vriddhibusiness@gmail\.com/);
 assert.match(nativeNavigation, /activeTab === 'order_once'.*thalimitra:native-back/s);
 assert.match(nativeNavigation, /activeTab !== 'order_once' && <NotificationBell compact \/>/);
-assert.match(nativeNavigation, /activeTab === 'home' \|\| activeTab === 'todays_menu'[\s\S]*?min-h-11 w-full/);
+assert.match(nativeNavigation, /activeTab === 'home' \|\| activeTab === 'todays_menu'[\s\S]*?min-h-\[60px\] w-full/);
+assert.match(nativeNavigation, /Deliver to/);
+assert.match(nativeNavigation, /Choose delivery location/);
+assert.match(nativeNavigation, /Change delivery location\. \$\{locationTitle\}\. \$\{locationDetail\}/);
+assert.match(nativeNavigation, /getAddressCompactLine\(confirmedAddress\)/);
 assert.match(accountPage, /setActiveTab\('delivery_addresses'\)/);
 assert.doesNotMatch(accountPage, /Delivery addresses[\s\S]{0,250}setIsLocationModalOpen\(true\)/);
 assert.match(addressPage, /Your saved addresses/);

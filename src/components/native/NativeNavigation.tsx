@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays, ClipboardList, House, MapPin, Menu as MenuIcon, UserRound } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronDown, ClipboardList, House, LocateFixed, MapPin, Menu as MenuIcon, UserRound } from 'lucide-react';
 import { useApp, type ActiveTab } from '../../context/AppContext';
 import { getAddressCompactLine } from '../../utils/addressDisplay';
 import { NotificationBell } from '../notifications/NotificationBell';
@@ -15,7 +15,16 @@ export const NativeNavigation = () => {
   const { activeTab, setActiveTab, setIsLocationModalOpen, centralLocation, activeDeliveryAddress } = useApp();
   const isPrimary = tabs.some(tab => tab.id === activeTab);
   const confirmedAddress = centralLocation?.confirmedAddress || (activeDeliveryAddress?.id ? activeDeliveryAddress : null);
-  const area = confirmedAddress ? getAddressCompactLine(confirmedAddress) : centralLocation?.formattedAddress || centralLocation?.area || 'Set location';
+  const isDetectingLocation = centralLocation?.detectionStatus === 'requesting' || centralLocation?.detectionStatus === 'detecting';
+  const hasConfirmedLocation = Boolean(confirmedAddress || centralLocation?.isAddressConfirmed);
+  const locationTitle = isDetectingLocation ? 'Finding your location' : confirmedAddress
+    ? confirmedAddress.customLabel || confirmedAddress.label || 'Delivery location'
+    : hasConfirmedLocation ? 'Delivery location' : 'Choose delivery location';
+  const locationDetail = isDetectingLocation ? 'Checking nearby delivery availability…' : confirmedAddress
+    ? getAddressCompactLine(confirmedAddress)
+    : hasConfirmedLocation
+      ? centralLocation?.formattedAddress || centralLocation?.sector || centralLocation?.area || 'Gandhinagar'
+      : 'Check if we deliver to your address';
   const title = activeTab === 'home' ? 'Thalimitra' : activeTab === 'todays_menu' ? 'Menu' :
     activeTab === 'order_history' ? 'Orders' : activeTab === 'customer_dashboard' ? 'Account' : activeTab === 'delivery_addresses' ? 'Delivery addresses' : activeTab === 'notifications' ? 'Notifications' :
       activeTab === 'order_once' ? 'Place order' : activeTab === 'contact' ? 'Help & support' :
@@ -41,9 +50,17 @@ export const NativeNavigation = () => {
           {activeTab !== 'order_once' && <NotificationBell compact />}
         </div>
         {(activeTab === 'home' || activeTab === 'todays_menu') &&
-          <button type="button" onClick={() => setIsLocationModalOpen(true)} aria-label={`Delivery location: ${area}`}
-            className="mt-2.5 flex min-h-11 w-full items-center gap-2 rounded-2xl bg-emerald-50 px-3.5 text-left text-xs font-bold text-emerald-900">
-            <MapPin className="h-4 w-4 shrink-0" /><span className="truncate">{area}</span>
+          <button type="button" onClick={() => setIsLocationModalOpen(true)} aria-label={`Change delivery location. ${locationTitle}. ${locationDetail}`}
+            className={`group mt-2.5 flex min-h-[60px] w-full items-center gap-3 rounded-[18px] border px-3 py-2 text-left shadow-[0_1px_3px_rgba(28,25,23,0.05)] transition duration-200 active:scale-[0.99] ${hasConfirmedLocation ? 'border-emerald-100 bg-gradient-to-r from-emerald-50 to-white' : 'border-stone-200 bg-stone-50'}`}>
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border bg-white shadow-sm ${hasConfirmedLocation ? 'border-emerald-100 text-[#0D6E44]' : 'border-stone-200 text-stone-600'}`}>
+              {isDetectingLocation ? <LocateFixed className="h-5 w-5 motion-safe:animate-pulse" aria-hidden="true" /> : <MapPin className="h-5 w-5" aria-hidden="true" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Deliver to</span>
+              <span className="mt-0.5 block truncate text-sm font-black leading-tight text-stone-900">{locationTitle}</span>
+              <span className="mt-0.5 block truncate text-[11px] font-medium leading-tight text-stone-500">{locationDetail}</span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-stone-400 transition-transform group-active:translate-y-0.5" aria-hidden="true" />
           </button>}
       </div>
     </header>
