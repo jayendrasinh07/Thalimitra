@@ -7,6 +7,7 @@ const migration = readFileSync('supabase/migrations/20260923235154_meal_subscrip
 const paymentMigration = readFileSync('supabase/migrations/20260923235803_subscription_payment_reference.sql', 'utf8');
 const multiServiceMigration = readFileSync('supabase/migrations/20260924024242_subscription_multi_service_and_role_isolation.sql', 'utf8');
 const daysFoundationMigration = readFileSync('supabase/migrations/20260926040000_days_based_meal_plans_foundation.sql', 'utf8');
+const daysAdvisorMigration = readFileSync('supabase/migrations/20260926041000_days_based_meal_plan_advisor_fixes.sql', 'utf8');
 const modal = readFileSync('src/components/modals/SubscribeModal.tsx', 'utf8');
 const management = readFileSync('src/components/kitchen/SubscriptionManagement.tsx', 'utf8');
 const source = readFileSync('src/services/subscriptionService.ts', 'utf8')
@@ -59,6 +60,11 @@ const subscription = { id: 'sub', plan_code: 'weekly_7', plan_name: '7-Meal Rout
   assert.match(daysFoundationMigration, /ENABLE ROW LEVEL SECURITY/g);
   assert.match(daysFoundationMigration, /7-Day Starter Plan/);
   assert.match(daysFoundationMigration, /30-Day Monthly Plan/);
+  assert.match(daysAdvisorMigration, /meal_plan_ledger_occurrence_subscription_idx/);
+  assert.match(daysAdvisorMigration, /meal_plan_occurrences_service_fk_idx/);
+  assert.match(daysAdvisorMigration, /meal_plan_subscriptions_accepted_quote_fk_idx/);
+  assert.match(daysAdvisorMigration, /orders_subscription_occurrence_fk_idx/);
+  assert.match(daysAdvisorMigration, /\(SELECT auth\.jwt\(\)\) ->> 'aal'/);
   assert.match(modal, /Which services do you prefer\?/);
   assert.match(modal, /not a number of days/);
   assert.match(modal, /Continue with request/);
