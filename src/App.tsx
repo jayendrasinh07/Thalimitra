@@ -12,6 +12,7 @@ import { Footer } from './components/common/Footer';
 import { RoleSwitcher } from './components/common/RoleSwitcher';
 import { ToastContainer } from './components/common/ToastContainer';
 import { authService } from './services/authService';
+import { DELIVERY_DAY_PLANS_ENABLED } from './config/featureFlags';
 
 import { DeveloperLocationDiagnostics } from './components/common/DeveloperLocationDiagnostics';
 
@@ -28,6 +29,7 @@ const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then((m
 const TodaysMenuPage = React.lazy(() => import('./pages/TodaysMenuPage').then((module) => ({ default: module.TodaysMenuPage })));
 const OrderOncePage = React.lazy(() => import('./pages/OrderOncePage').then((module) => ({ default: module.OrderOncePage })));
 const MealPlansPage = React.lazy(() => import('./pages/MealPlansPage').then((module) => ({ default: module.MealPlansPage })));
+const DeliveryDayPlansPage = React.lazy(() => import('./pages/DeliveryDayPlansPage').then((module) => ({ default: module.DeliveryDayPlansPage })));
 const WhyUsPage = React.lazy(() => import('./pages/WhyUsPage').then((module) => ({ default: module.WhyUsPage })));
 const GandhinagarCoveragePage = React.lazy(() => import('./pages/GandhinagarCoveragePage').then((module) => ({ default: module.GandhinagarCoveragePage })));
 const StudentsPage = React.lazy(() => import('./pages/StudentsPage').then((module) => ({ default: module.StudentsPage })));
@@ -48,6 +50,7 @@ const LocationSelectorModal = React.lazy(() => import('./components/modals/Locat
 const LegalModal = React.lazy(() => import('./components/modals/LegalModal').then((module) => ({ default: module.LegalModal })));
 const AuthModal = React.lazy(() => import('./components/modals/AuthModal').then((module) => ({ default: module.AuthModal })));
 const SubscribeModal = React.lazy(() => import('./components/modals/SubscribeModal').then((module) => ({ default: module.SubscribeModal })));
+const DeliveryDayPlanModal = React.lazy(() => import('./components/modals/DeliveryDayPlanModal').then((module) => ({ default: module.DeliveryDayPlanModal })));
 
 const PageLoader = () => <CustomerPageSkeleton />;
 
@@ -148,7 +151,7 @@ const MainContent: React.FC = () => {
         return <HowItWorksPage />;
       case 'meal_plans':
       case 'my_subscription':
-        return <MealPlansPage />;
+        return DELIVERY_DAY_PLANS_ENABLED ? <DeliveryDayPlansPage /> : <MealPlansPage />;
       case 'todays_menu':
         return <TodaysMenuPage />;
       case 'order_once':
@@ -191,7 +194,7 @@ const MainContent: React.FC = () => {
 
       <React.Suspense fallback={null}>
         {isOrderOnceModalOpen && <OrderOnceModal />}
-        {hasOpenedSubscribe && <SubscribeModal />}
+        {hasOpenedSubscribe && (DELIVERY_DAY_PLANS_ENABLED ? <DeliveryDayPlanModal /> : <SubscribeModal />)}
         {isTraceabilityModalOpen && <TraceabilityModal />}
         {isCorporateModalOpen && <CorporateEnquiryModal />}
         {isFeedbackModalOpen && <FeedbackModal />}

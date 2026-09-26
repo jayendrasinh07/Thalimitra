@@ -3,6 +3,8 @@ export type UserRole = 'guest' | 'customer' | 'admin' | 'kitchen_lead' | 'corpor
 export type CustomerSegment = 'student' | 'worker' | 'corporate' | 'family' | 'individual';
 
 export type PlanDuration = 'daily' | 'weekly_7' | 'half_month_15' | 'monthly_30' | 'corporate_custom';
+export type DeliveryDayPlanCode = 'starter_7_days' | 'regular_15_days' | 'monthly_30_days';
+export type CustomerPlanCode = PlanDuration | DeliveryDayPlanCode;
 
 export type ServiceMealType = 'breakfast' | 'lunch' | 'dinner';
 export type MealSlot = ServiceMealType | 'both';

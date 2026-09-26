@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { User } from '@supabase/supabase-js';
 import { 
   UserRole, 
-  PlanDuration, 
+  CustomerPlanCode,
   MealTraceabilityInfo,
   CustomerFeedback,
   KitchenBatch,
@@ -142,9 +142,9 @@ interface AppContextType {
   // Modals & Triggers
   isSubscribeModalOpen: boolean;
   setIsSubscribeModalOpen: (open: boolean) => void;
-  selectedPlanForCheckout: PlanDuration | null;
-  setSelectedPlanForCheckout: (plan: PlanDuration | null) => void;
-  openCheckoutForPlan: (planId: PlanDuration) => void;
+  selectedPlanForCheckout: CustomerPlanCode | null;
+  setSelectedPlanForCheckout: (plan: CustomerPlanCode | null) => void;
+  openCheckoutForPlan: (planId: CustomerPlanCode) => void;
 
   isTraceabilityModalOpen: boolean;
   setIsTraceabilityModalOpen: (open: boolean) => void;
@@ -279,7 +279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setIsSubscribeModalOpen = useCallback((open: boolean) => {
     setIsSubscribeModalOpenState(SUBSCRIPTIONS_ENABLED && open);
   }, []);
-  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<PlanDuration | null>(null);
+  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<CustomerPlanCode | null>(null);
   const [isTraceabilityModalOpen, setIsTraceabilityModalOpen] = useState<boolean>(false);
   const [isCorporateModalOpen, setIsCorporateModalOpen] = useState<boolean>(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState<boolean>(false);
@@ -777,7 +777,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   const advanceOrderStatus = (_orderId:string,_nextStatus:OrderStatus) => {showToast('Status not changed','Use the kitchen workflow to update preparation status.','info');};
 
-  const openCheckoutForPlan = (planId: PlanDuration) => {
+  const openCheckoutForPlan = (planId: CustomerPlanCode) => {
     if (!SUBSCRIPTIONS_ENABLED) {
       setActiveTab('order_once');
       return;
