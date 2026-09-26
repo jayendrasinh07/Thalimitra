@@ -28,19 +28,21 @@ export const NativeNavigation = () => {
 
   return <>
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur-md">
-      <div className="mx-auto flex max-w-2xl items-center gap-3">
-        {!isPrimary && <button type="button" aria-label="Back" onClick={() => activeTab === 'order_once' ? window.dispatchEvent(new Event('thalimitra:native-back')) : navigate('customer_dashboard')}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-stone-200 text-stone-800">
-          <ArrowLeft className="h-5 w-5" />
-        </button>}
-        <div className="min-w-0 flex-1">
-          <div className="text-lg font-black leading-tight text-stone-900">{title}</div>
-          {activeTab === 'home' && <div className="text-xs font-semibold text-emerald-800">Khana jo roz apna lage.</div>}
+      <div className="mx-auto max-w-2xl">
+        <div className="flex items-center gap-3">
+          {!isPrimary && <button type="button" aria-label="Back" onClick={() => activeTab === 'order_once' ? window.dispatchEvent(new Event('thalimitra:native-back')) : navigate('customer_dashboard')}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-stone-200 text-stone-800">
+            <ArrowLeft className="h-5 w-5" />
+          </button>}
+          <div className="min-w-0 flex-1">
+            <div className="text-lg font-black leading-tight text-stone-900">{title}</div>
+            {activeTab === 'home' && <div className="text-xs font-semibold text-emerald-800">Khana jo roz apna lage.</div>}
+          </div>
+          {activeTab !== 'order_once' && <NotificationBell compact />}
         </div>
-        <NotificationBell compact />
         {(activeTab === 'home' || activeTab === 'todays_menu') &&
           <button type="button" onClick={() => setIsLocationModalOpen(true)} aria-label={`Delivery location: ${area}`}
-            className="flex min-h-11 max-w-[48%] items-center gap-1.5 rounded-2xl bg-emerald-50 px-3 text-xs font-bold text-emerald-900">
+            className="mt-2.5 flex min-h-11 w-full items-center gap-2 rounded-2xl bg-emerald-50 px-3.5 text-left text-xs font-bold text-emerald-900">
             <MapPin className="h-4 w-4 shrink-0" /><span className="truncate">{area}</span>
           </button>}
       </div>
