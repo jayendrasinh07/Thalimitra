@@ -12,6 +12,7 @@ export type NotificationPreferences = { remindersEnabled: boolean; offersEnabled
 export type NotificationCenter = { unreadCount: number; notifications: NotificationItem[]; preferences: NotificationPreferences };
 
 const INSTALLATION_KEY = 'thalimitra_installation_id';
+let realtimeSubscriptionId = 0;
 const installationId = () => {
   const existing = localStorage.getItem(INSTALLATION_KEY);
   if (existing) return existing;
@@ -54,7 +55,10 @@ export const notificationService = {
   subscribe(userId: string, onChange: () => void) {
     if (!isSupabaseConfigured()) return () => undefined;
     const supabase = client();
-    const channel = supabase.channel(`notifications:${userId}`)
+    // The bell and notification inbox can be mounted together. Each listener
+    // needs its own Realtime topic; reusing a subscribed topic makes Supabase
+    // reject the second postgres_changes callback and crashes the screen.
+    const channel = supabase.channel(`notifications:${userId}:${++realtimeSubscriptionId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, onChange)
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
@@ -69,7 +73,7 @@ export const notificationService = {
   async registerToken(token: string) {
     const { error } = await client().rpc('register_push_device', {
       p_installation_id: installationId(), p_push_token: token, p_platform: 'android',
-      p_app_id: 'com.thalimitra.customer', p_app_version: '1.23',
+      p_app_id: 'com.thalimitra.customer', p_app_version: '1.24',
     });
     if (error) throw error;
   },

@@ -15,6 +15,7 @@ for (const rpc of ['register_push_device', 'unregister_push_device', 'get_notifi
 assert.match(service, /PushNotifications\.requestPermissions/);
 assert.match(service, /PushNotifications\.register/);
 assert.match(service, /pushNotificationActionPerformed/);
+assert.match(service, /notifications:\$\{userId\}:\$\{\+\+realtimeSubscriptionId\}/);
 assert.match(bridge, /targetKey/);
 assert.match(page, /Enable phone notifications/);
 assert.match(page, /Order and payment updates stay on/);
@@ -23,6 +24,6 @@ assert.match(migration, /REVOKE ALL ON private\.push_devices/);
 assert.doesNotMatch(service, /from\(['\"]push_devices/);
 assert.match(worker, /firebase\.messaging/);
 assert.match(worker, /x-worker-key/);
-assert.match(gradle, /versionCode 24/);
-assert.match(gradle, /versionName "1\.23"/);
+assert.match(gradle, /versionCode 25/);
+assert.match(gradle, /versionName "1\.24"/);
 console.log('PASS: private push tokens, owner inbox, Android permission/action routing, and worker authorization');
