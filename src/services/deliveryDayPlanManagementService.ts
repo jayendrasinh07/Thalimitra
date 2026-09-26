@@ -13,6 +13,14 @@ export interface ManagedDeliveryDayPlan extends DeliveryDayPlan {
     phone: string | null;
     address: string;
   };
+  payment: null | {
+    id: string;
+    amount: number;
+    currency: 'INR';
+    payment_method: 'manual_upi' | 'manual_bank' | 'cash';
+    status: 'verified';
+    verified_at: string;
+  };
 }
 
 export interface DeliveryDayPlanManagementDocument {
@@ -33,7 +41,17 @@ const parseManagedPlan = (value: any): ManagedDeliveryDayPlan => {
     || (value.customer.phone != null && typeof value.customer.phone !== 'string')) {
     throw new DeliveryDayPlanError('INVALID_RESPONSE');
   }
-  return { ...plan, customer: value.customer };
+  if (value.payment != null && (typeof value.payment.id !== 'string'
+    || !Number.isFinite(Number(value.payment.amount)) || value.payment.currency !== 'INR'
+    || !['manual_upi', 'manual_bank', 'cash'].includes(value.payment.payment_method)
+    || value.payment.status !== 'verified' || typeof value.payment.verified_at !== 'string')) {
+    throw new DeliveryDayPlanError('INVALID_RESPONSE');
+  }
+  return {
+    ...plan,
+    customer: value.customer,
+    payment: value.payment ? { ...value.payment, amount: Number(value.payment.amount) } : null,
+  };
 };
 
 export const deliveryDayPlanManagementService = {
@@ -58,6 +76,18 @@ export const deliveryDayPlanManagementService = {
       p_discount_amount: input.discountAmount,
       p_tax_amount: input.taxAmount,
       p_valid_until: input.validUntil,
+    }));
+  },
+
+  async verifyAndActivate(input: {
+    subscriptionId: string;
+    paymentReference: string;
+    paymentMethod: 'manual_upi' | 'manual_bank' | 'cash';
+  }): Promise<ManagedDeliveryDayPlan> {
+    return parseManagedPlan(await rpc('verify_and_activate_delivery_day_plan', {
+      p_subscription_id: input.subscriptionId,
+      p_payment_reference: input.paymentReference.trim(),
+      p_payment_method: input.paymentMethod,
     }));
   },
 };
