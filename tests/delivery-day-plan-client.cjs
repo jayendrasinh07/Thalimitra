@@ -10,6 +10,8 @@ const page = readFileSync('src/pages/DeliveryDayPlansPage.tsx', 'utf8');
 const modal = readFileSync('src/components/modals/DeliveryDayPlanModal.tsx', 'utf8');
 const app = readFileSync('src/App.tsx', 'utf8');
 const flags = readFileSync('src/config/featureFlags.ts', 'utf8');
+const previewMigration = readFileSync('supabase/migrations/20260926041101_delivery_day_plan_preview.sql', 'utf8');
+const customerMigration = readFileSync('supabase/migrations/20260926043000_delivery_day_plan_customer_rpcs.sql', 'utf8');
 const calls = [];
 let response = { data: null, error: null };
 const api = vm.runInNewContext(
@@ -38,6 +40,26 @@ const plan = {
   response = { data: [plan], error: null };
   assert.equal((await api.deliveryDayPlanService.getMine())[0].total_meal_occurrences, 45);
 
+  const preview = {
+    template_code: 'regular_15_days', plan_name: '15-Day Regular Plan', delivery_days: 15,
+    meal_types: ['breakfast', 'lunch', 'dinner'], weekdays: [1,2,3], meals_per_delivery_day: 3,
+    total_meal_occurrences: 45, first_delivery_date: '2026-09-28', expected_completion_date: '2026-10-30',
+    currency: 'INR', estimated_subtotal_min: '4305.00', estimated_subtotal_max: '9255.00',
+    estimated_delivery_fee: '0.00', estimated_total_min: '4305.00', estimated_total_max: '9255.00',
+    estimate_basis: 'current_active_menu_range', final_quote_required: true,
+  };
+  response = { data: preview, error: null };
+  const parsedPreview = await api.deliveryDayPlanService.preview({
+    templateCode: 'regular_15_days', mealTypes: ['breakfast', 'lunch', 'dinner'], weekdays: [1,2,3],
+    addressId: 'address-1', preferredStartDate: '2026-09-28',
+  });
+  assert.equal(parsedPreview.estimated_total_min, 4305);
+  assert.equal(parsedPreview.total_meal_occurrences, 45);
+  assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify({ name: 'preview_delivery_day_plan', args: {
+    p_template_code: 'regular_15_days', p_meal_types: ['breakfast', 'lunch', 'dinner'], p_weekdays: [1,2,3],
+    p_address_id: 'address-1', p_preferred_start_date: '2026-09-28',
+  } }));
+
   assert.match(page, /delivery days/);
   assert.match(page, /total_meal_occurrences/);
   assert.match(page, /Breakfast, Lunch, Dinner or any combination/);
@@ -46,7 +68,16 @@ const plan = {
   assert.match(modal, /requestIdempotencyKey: requestKey\.current/);
   assert.match(modal, /address\.houseNumber/);
   assert.match(modal, /No automatic charge/);
+  assert.match(modal, /Database-calculated preview/);
+  assert.match(modal, /expected_completion_date/);
+  assert.match(modal, /current active menu prices/);
+  assert.match(previewMigration, /private\.require_customer_access\(\)/);
+  assert.match(previewMigration, /public\.quote_delivery_address\(p_address_id\)/);
+  assert.match(previewMigration, /v_template\.delivery_days \* cardinality\(v_meal_types\)/);
+  assert.match(previewMigration, /GRANT EXECUTE ON FUNCTION public\.preview_delivery_day_plan[\s\S]*TO authenticated/);
+  assert.match(customerMigration, /expected_completion_date, customer_note, request_idempotency_key/);
+  assert.match(customerMigration, /v_preview := public\.preview_delivery_day_plan/);
   assert.match(app, /DELIVERY_DAY_PLANS_ENABLED \? <DeliveryDayPlansPage \/> : <MealPlansPage \/>/);
   assert.match(flags, /DELIVERY_DAY_PLANS_ENABLED = false/);
-  console.log('PASS: delivery-day plan totals, guarded request mapping, builder UI and rollout flag');
+  console.log('PASS: delivery-day totals, guarded preview/request mapping, schedule estimate UI and rollout flag');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, ShieldCheck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { deliveryDayPlanService } from '../../services/deliveryDayPlanService';
+import type { DeliveryDayPlanPreview } from '../../services/deliveryDayPlanService';
 import type { DeliveryDayPlanCode, ServiceMealType } from '../../types';
 
 const plans: Record<DeliveryDayPlanCode, { days: 7 | 15 | 30; name: string }> = {
@@ -21,6 +22,10 @@ const todayInIndia = () => new Intl.DateTimeFormat('en-CA', {
 }).format(new Date());
 
 const newRequestKey = () => crypto.randomUUID();
+const rupees = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+const displayDate = (value: string) => new Intl.DateTimeFormat('en-IN', {
+  timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric',
+}).format(new Date(`${value}T00:00:00+05:30`));
 
 export const DeliveryDayPlanModal: React.FC = () => {
   const { isSubscribeModalOpen, setIsSubscribeModalOpen, selectedPlanForCheckout, currentUser,
@@ -37,6 +42,10 @@ export const DeliveryDayPlanModal: React.FC = () => {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<DeliveryDayPlanPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewSequence = useRef(0);
   const requestKey = useRef(newRequestKey());
   const resumeAfterSetup = useRef<'auth' | 'address' | null>(null);
   const totalMeals = plans[planCode].days * mealTypes.length;
@@ -51,6 +60,8 @@ export const DeliveryDayPlanModal: React.FC = () => {
     setStartDate(todayInIndia());
     setNote('');
     setError(null);
+    setPreview(null);
+    setPreviewError(null);
     requestKey.current = newRequestKey();
   }, [isSubscribeModalOpen, initialPlan]);
 
@@ -73,6 +84,37 @@ export const DeliveryDayPlanModal: React.FC = () => {
     document.documentElement.style.overflow = 'hidden';
     return () => { document.documentElement.style.overflow = previousOverflow; };
   }, [isSubscribeModalOpen]);
+
+  useEffect(() => {
+    const sequence = ++previewSequence.current;
+    if (!isSubscribeModalOpen || !currentUser || !addressId || !startDate || selectedWeekdays.length === 0 || mealTypes.length === 0) {
+      setPreview(null);
+      setPreviewLoading(false);
+      setPreviewError(null);
+      return;
+    }
+    setPreviewLoading(true);
+    setPreviewError(null);
+    const timer = window.setTimeout(() => {
+      void deliveryDayPlanService.preview({
+        templateCode: planCode,
+        mealTypes,
+        weekdays: selectedWeekdays,
+        addressId,
+        preferredStartDate: startDate,
+      }).then(result => {
+        if (previewSequence.current !== sequence) return;
+        setPreview(result);
+      }).catch(reason => {
+        if (previewSequence.current !== sequence) return;
+        setPreview(null);
+        setPreviewError(reason instanceof Error ? reason.message : 'Plan estimate is unavailable.');
+      }).finally(() => {
+        if (previewSequence.current === sequence) setPreviewLoading(false);
+      });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [isSubscribeModalOpen, currentUser, planCode, mealTypes, selectedWeekdays, addressId, startDate]);
 
   if (!isSubscribeModalOpen) return null;
 
@@ -127,12 +169,14 @@ export const DeliveryDayPlanModal: React.FC = () => {
 
       <section className="space-y-5 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6"><label className="block text-sm font-black text-stone-900">Preferred start date<div className="relative mt-2"><CalendarDays className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-emerald-700" /><input type="date" min={todayInIndia()} value={startDate} onChange={event => setStartDate(event.target.value)} className="min-h-12 w-full rounded-xl border border-stone-200 bg-white pl-11 pr-3 text-sm font-bold focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-100" /></div></label><div><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-stone-900">Delivery address</p><button type="button" onClick={openRequiredSetup} className="rounded-lg px-2 py-1 text-xs font-black text-emerald-700">{currentUser ? 'Add address' : 'Sign in'}</button></div>{serviceableAddresses.length > 0 ? <div className="mt-2 space-y-2">{serviceableAddresses.map(address => <label key={address.id} className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-3 ${addressId === address.id ? 'border-emerald-600 bg-emerald-50' : 'border-stone-200'}`}><input type="radio" name="delivery-day-plan-address" checked={addressId === address.id} onChange={() => setAddressId(address.id)} className="mt-1 accent-emerald-700" /><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /><span className="min-w-0 text-sm"><strong className="block text-stone-900">{address.customLabel || address.label}</strong><span className="block text-stone-500">{[address.houseNumber, address.building, address.street, address.area, address.sector, address.pincode].filter(Boolean).join(', ')}</span></span></label>)}</div> : <button type="button" onClick={openRequiredSetup} className="mt-2 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 text-sm font-bold text-amber-900"><MapPin className="h-5 w-5" />{currentUser ? 'Add a serviceable delivery address' : 'Sign in and add delivery address'}</button>}</div></section>
 
+      <section aria-live="polite" className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6"><p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700">Database-calculated preview</p>{!currentUser || !addressId ? <p className="mt-3 text-sm leading-6 text-stone-600">Sign in and choose a serviceable address to see the expected period and current menu estimate.</p> : previewLoading ? <div className="mt-4 space-y-3" aria-label="Calculating plan preview"><div className="h-5 w-2/3 animate-pulse rounded bg-stone-100" /><div className="h-14 animate-pulse rounded-2xl bg-stone-100" /></div> : preview ? <div className="mt-4 space-y-4"><div className="grid grid-cols-2 gap-3"><div className="rounded-2xl bg-stone-50 p-3"><p className="text-xs font-bold text-stone-500">Expected period</p><p className="mt-1 text-sm font-black text-stone-900">{displayDate(preview.first_delivery_date)} – {displayDate(preview.expected_completion_date)}</p></div><div className="rounded-2xl bg-emerald-50 p-3"><p className="text-xs font-bold text-emerald-800">Current menu estimate</p><p className="mt-1 text-lg font-black text-emerald-950">{preview.estimated_total_min === preview.estimated_total_max ? rupees.format(preview.estimated_total_min) : `${rupees.format(preview.estimated_total_min)} – ${rupees.format(preview.estimated_total_max)}`}</p></div></div><p className="text-xs leading-5 text-stone-500">For {preview.total_meal_occurrences} meals, using current active menu prices and this address's delivery fee. Your final itemized quote may include an approved plan discount. Nothing is charged now.</p></div> : <p role={previewError ? 'alert' : undefined} className={`mt-3 text-sm leading-6 ${previewError ? 'font-bold text-red-700' : 'text-stone-600'}`}>{previewError || 'Choose your plan details to calculate the preview.'}</p>}</section>
+
       <section className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6"><label className="block text-sm font-black text-stone-900">Anything Operations should know? <span className="font-normal text-stone-500">Optional</span><textarea value={note} onChange={event => setNote(event.target.value)} maxLength={500} rows={3} placeholder="Work schedule, reception timing or other useful detail" className="mt-2 w-full rounded-xl border border-stone-200 p-3 text-sm font-normal focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-100" /></label></section>
 
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{error}</p>}
       <div className="rounded-2xl bg-white p-4 text-xs leading-5 text-stone-600 shadow-sm"><p className="flex items-start gap-2"><ShieldCheck className="h-4 w-4 shrink-0 text-emerald-700" /><span><strong className="text-stone-900">No automatic charge.</strong> Your plan starts only after you review the itemized quote and payment is verified.</span></p></div>
     </div></main>
 
-    <footer className="z-20 shrink-0 border-t border-stone-200 bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(28,25,23,0.07)] backdrop-blur-xl sm:px-6 sm:py-4"><div className="mx-auto flex max-w-3xl items-center gap-3 sm:justify-between"><div className="hidden sm:block"><p className="text-xs font-bold text-stone-500">Your request</p><p className="text-sm font-black text-stone-900">{plans[planCode].days} days · {totalMeals} meals total</p></div><button type="button" disabled={busy} onClick={() => void submit()} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#0D6E44] px-6 font-black text-white shadow-lg shadow-emerald-950/10 disabled:opacity-50 sm:w-auto sm:min-w-64">{busy ? 'Sending request…' : <><CheckCircle2 className="h-5 w-5" />Review plan request</>}</button></div></footer>
+    <footer className="z-20 shrink-0 border-t border-stone-200 bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(28,25,23,0.07)] backdrop-blur-xl sm:px-6 sm:py-4"><div className="mx-auto flex max-w-3xl items-center gap-3 sm:justify-between"><div className="hidden sm:block"><p className="text-xs font-bold text-stone-500">Your request</p><p className="text-sm font-black text-stone-900">{plans[planCode].days} days · {totalMeals} meals total</p></div><button type="button" disabled={busy || Boolean(currentUser && addressId && (previewLoading || !preview))} onClick={() => void submit()} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#0D6E44] px-6 font-black text-white shadow-lg shadow-emerald-950/10 disabled:opacity-50 sm:w-auto sm:min-w-64">{busy ? 'Sending request…' : <><CheckCircle2 className="h-5 w-5" />Send plan request</>}</button></div></footer>
   </div>;
 };

@@ -11,6 +11,26 @@ export interface DeliveryDayPlanTemplate {
   delivery_days: 7 | 15 | 30;
 }
 
+export interface DeliveryDayPlanPreview {
+  template_code: DeliveryDayPlanCode;
+  plan_name: string;
+  delivery_days: 7 | 15 | 30;
+  meal_types: ServiceMealType[];
+  weekdays: number[];
+  meals_per_delivery_day: number;
+  total_meal_occurrences: number;
+  first_delivery_date: string;
+  expected_completion_date: string;
+  currency: 'INR';
+  estimated_subtotal_min: number;
+  estimated_subtotal_max: number;
+  estimated_delivery_fee: number;
+  estimated_total_min: number;
+  estimated_total_max: number;
+  estimate_basis: 'current_active_menu_range';
+  final_quote_required: true;
+}
+
 export interface DeliveryDayPlan {
   id: string;
   template_code: DeliveryDayPlanCode;
@@ -91,6 +111,33 @@ const parsePlan = (value: any): DeliveryDayPlan => {
   } as DeliveryDayPlan;
 };
 
+const parsePreview = (value: any): DeliveryDayPlanPreview => {
+  if (!value || !planCodes.includes(value.template_code) || typeof value.plan_name !== 'string'
+    || ![7, 15, 30].includes(Number(value.delivery_days)) || !Array.isArray(value.meal_types)
+    || value.meal_types.some((type: unknown) => !mealTypes.includes(type as ServiceMealType))
+    || !Array.isArray(value.weekdays) || value.weekdays.some((day: unknown) => !Number.isInteger(Number(day)) || Number(day) < 1 || Number(day) > 7)
+    || !Number.isInteger(Number(value.meals_per_delivery_day)) || !Number.isInteger(Number(value.total_meal_occurrences))
+    || typeof value.first_delivery_date !== 'string' || typeof value.expected_completion_date !== 'string'
+    || value.currency !== 'INR' || value.estimate_basis !== 'current_active_menu_range'
+    || value.final_quote_required !== true) throw new DeliveryDayPlanError('INVALID_RESPONSE');
+  const amounts = ['estimated_subtotal_min', 'estimated_subtotal_max', 'estimated_delivery_fee', 'estimated_total_min', 'estimated_total_max'] as const;
+  if (amounts.some(field => !Number.isFinite(Number(value[field])) || Number(value[field]) < 0)) {
+    throw new DeliveryDayPlanError('INVALID_RESPONSE');
+  }
+  return {
+    ...value,
+    delivery_days: Number(value.delivery_days),
+    weekdays: value.weekdays.map(Number),
+    meals_per_delivery_day: Number(value.meals_per_delivery_day),
+    total_meal_occurrences: Number(value.total_meal_occurrences),
+    estimated_subtotal_min: Number(value.estimated_subtotal_min),
+    estimated_subtotal_max: Number(value.estimated_subtotal_max),
+    estimated_delivery_fee: Number(value.estimated_delivery_fee),
+    estimated_total_min: Number(value.estimated_total_min),
+    estimated_total_max: Number(value.estimated_total_max),
+  } as DeliveryDayPlanPreview;
+};
+
 export const deliveryDayPlanService = {
   async getCatalog(): Promise<DeliveryDayPlanTemplate[]> {
     const data = await rpc('get_delivery_day_plan_catalog');
@@ -103,6 +150,21 @@ export const deliveryDayPlanService = {
     const rows = Array.isArray(data) ? data : null;
     if (!rows) throw new DeliveryDayPlanError('INVALID_RESPONSE');
     return rows.map(parsePlan);
+  },
+  async preview(input: {
+    templateCode: DeliveryDayPlanCode;
+    mealTypes: ServiceMealType[];
+    weekdays: number[];
+    addressId: string;
+    preferredStartDate: string;
+  }): Promise<DeliveryDayPlanPreview> {
+    return parsePreview(await rpc('preview_delivery_day_plan', {
+      p_template_code: input.templateCode,
+      p_meal_types: input.mealTypes,
+      p_weekdays: input.weekdays,
+      p_address_id: input.addressId,
+      p_preferred_start_date: input.preferredStartDate,
+    }));
   },
   async request(input: {
     templateCode: DeliveryDayPlanCode;
