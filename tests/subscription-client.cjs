@@ -8,6 +8,7 @@ const paymentMigration = readFileSync('supabase/migrations/20260923235803_subscr
 const multiServiceMigration = readFileSync('supabase/migrations/20260924024242_subscription_multi_service_and_role_isolation.sql', 'utf8');
 const daysFoundationMigration = readFileSync('supabase/migrations/20260926040000_days_based_meal_plans_foundation.sql', 'utf8');
 const daysAdvisorMigration = readFileSync('supabase/migrations/20260926041000_days_based_meal_plan_advisor_fixes.sql', 'utf8');
+const daysCustomerRpcMigration = readFileSync('supabase/migrations/20260926043000_delivery_day_plan_customer_rpcs.sql', 'utf8');
 const modal = readFileSync('src/components/modals/SubscribeModal.tsx', 'utf8');
 const management = readFileSync('src/components/kitchen/SubscriptionManagement.tsx', 'utf8');
 const source = readFileSync('src/services/subscriptionService.ts', 'utf8')
@@ -65,6 +66,14 @@ const subscription = { id: 'sub', plan_code: 'weekly_7', plan_name: '7-Meal Rout
   assert.match(daysAdvisorMigration, /meal_plan_subscriptions_accepted_quote_fk_idx/);
   assert.match(daysAdvisorMigration, /orders_subscription_occurrence_fk_idx/);
   assert.match(daysAdvisorMigration, /\(SELECT auth\.jwt\(\)\) ->> 'aal'/);
+  assert.match(daysCustomerRpcMigration, /private\.require_customer_access\(\)/);
+  assert.match(daysCustomerRpcMigration, /request_idempotency_key/);
+  assert.match(daysCustomerRpcMigration, /cardinality\(v_meal_types\) <> cardinality\(p_meal_types\)/);
+  assert.match(daysCustomerRpcMigration, /cardinality\(v_weekdays\) <> cardinality\(p_weekdays\)/);
+  assert.match(daysCustomerRpcMigration, /a\.user_id = v_actor AND a\.is_serviceable/);
+  assert.match(daysCustomerRpcMigration, /CREATE OR REPLACE FUNCTION public\.get_my_delivery_day_plans/);
+  assert.match(daysCustomerRpcMigration, /accepts no price or balance fields/);
+  assert.doesNotMatch(daysCustomerRpcMigration, /p_(quoted_total|total_amount|remaining_balance)/);
   assert.match(modal, /Which services do you prefer\?/);
   assert.match(modal, /not a number of days/);
   assert.match(modal, /Continue with request/);
