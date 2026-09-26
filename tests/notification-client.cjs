@@ -23,6 +23,6 @@ assert.match(migration, /REVOKE ALL ON private\.push_devices/);
 assert.doesNotMatch(service, /from\(['\"]push_devices/);
 assert.match(worker, /firebase\.messaging/);
 assert.match(worker, /x-worker-key/);
-assert.match(gradle, /versionCode 23/);
-assert.match(gradle, /versionName "1\.22"/);
+assert.match(gradle, /versionCode 24/);
+assert.match(gradle, /versionName "1\.23"/);
 console.log('PASS: private push tokens, owner inbox, Android permission/action routing, and worker authorization');

@@ -69,7 +69,7 @@ export const notificationService = {
   async registerToken(token: string) {
     const { error } = await client().rpc('register_push_device', {
       p_installation_id: installationId(), p_push_token: token, p_platform: 'android',
-      p_app_id: 'com.thalimitra.customer', p_app_version: '1.22',
+      p_app_id: 'com.thalimitra.customer', p_app_version: '1.23',
     });
     if (error) throw error;
   },
