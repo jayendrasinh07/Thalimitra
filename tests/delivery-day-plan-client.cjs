@@ -14,6 +14,8 @@ const previewMigration = readFileSync('supabase/migrations/20260926041101_delive
 const customerMigration = readFileSync('supabase/migrations/20260926043000_delivery_day_plan_customer_rpcs.sql', 'utf8');
 const quoteMigration = readFileSync('supabase/migrations/20260926060000_delivery_day_plan_quotes.sql', 'utf8');
 const paymentMigration = readFileSync('supabase/migrations/20260926062000_delivery_day_plan_payment_gate.sql', 'utf8');
+const occurrenceMigration = readFileSync('supabase/migrations/20260926064000_delivery_day_plan_occurrences.sql', 'utf8');
+const occurrenceSmoke = readFileSync('supabase/migrations/20260926065000_delivery_day_plan_occurrence_smoke.sql', 'utf8');
 const managementService = readFileSync('src/services/deliveryDayPlanManagementService.ts', 'utf8');
 const management = readFileSync('src/components/kitchen/DeliveryDayPlanManagement.tsx', 'utf8');
 const dashboard = readFileSync('src/pages/KitchenDashboard.tsx', 'utf8');
@@ -114,6 +116,14 @@ const plan = {
   assert.match(paymentMigration, /payment\.amount = q\.total_amount/);
   assert.match(paymentMigration, /payment_verified_and_activated/);
   assert.doesNotMatch(paymentMigration, /'payment_reference',\s*payment\.payment_reference/);
+  assert.match(occurrenceMigration, /CREATE TABLE public\.meal_plan_service_blackouts/);
+  assert.match(occurrenceMigration, /CREATE TABLE public\.meal_plan_pause_days/);
+  assert.match(occurrenceMigration, /CREATE OR REPLACE FUNCTION private\.generate_meal_plan_occurrences/);
+  assert.match(occurrenceMigration, /ON CONFLICT \(subscription_id, service_date, meal_type\) DO NOTHING/);
+  assert.match(occurrenceMigration, /v_generated := private\.generate_meal_plan_occurrences\(p_subscription_id\)/);
+  assert.match(occurrenceMigration, /v_subscription\.status <> 'active'/);
+  assert.match(occurrenceSmoke, /v_count <> 14/);
+  assert.match(occurrenceSmoke, /private\.generate_meal_plan_occurrences\(v_subscription\) <> 0/);
   assert.match(page, /Accept exact quote/);
   assert.match(page, /Acceptance does not charge you/);
   assert.match(dashboard, /DELIVERY_DAY_PLANS_ENABLED \? <DeliveryDayPlanManagement \/> : <SubscriptionManagement \/>/);
