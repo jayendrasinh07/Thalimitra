@@ -16,6 +16,8 @@ const quoteMigration = readFileSync('supabase/migrations/20260926060000_delivery
 const paymentMigration = readFileSync('supabase/migrations/20260926062000_delivery_day_plan_payment_gate.sql', 'utf8');
 const occurrenceMigration = readFileSync('supabase/migrations/20260926064000_delivery_day_plan_occurrences.sql', 'utf8');
 const occurrenceSmoke = readFileSync('supabase/migrations/20260926065000_delivery_day_plan_occurrence_smoke.sql', 'utf8');
+const planOrderMigration = readFileSync('supabase/migrations/20260926066000_delivery_day_plan_order_materialization.sql', 'utf8');
+const planOrderSmoke = readFileSync('supabase/migrations/20260926067000_delivery_day_plan_order_smoke.sql', 'utf8');
 const managementService = readFileSync('src/services/deliveryDayPlanManagementService.ts', 'utf8');
 const management = readFileSync('src/components/kitchen/DeliveryDayPlanManagement.tsx', 'utf8');
 const dashboard = readFileSync('src/pages/KitchenDashboard.tsx', 'utf8');
@@ -124,6 +126,15 @@ const plan = {
   assert.match(occurrenceMigration, /v_subscription\.status <> 'active'/);
   assert.match(occurrenceSmoke, /v_count <> 14/);
   assert.match(occurrenceSmoke, /private\.generate_meal_plan_occurrences\(v_subscription\) <> 0/);
+  assert.match(planOrderMigration, /CREATE TRIGGER enforce_subscription_order_occurrence/);
+  assert.match(planOrderMigration, /pg_advisory_xact_lock/);
+  assert.match(planOrderMigration, /orders\.subscription_occurrence_id = v_occurrence\.occurrence_id/);
+  assert.match(planOrderMigration, /v_booked < v_candidate_slot\.max_orders/);
+  assert.match(planOrderMigration, /CREATE TRIGGER materialize_plan_orders_after_menu_publish/);
+  assert.match(planOrderMigration, /CREATE TRIGGER materialize_plan_order_after_occurrence/);
+  assert.match(planOrderMigration, /private\.require_kitchen_access\(\)/);
+  assert.match(planOrderSmoke, /v_count <> 1/);
+  assert.match(planOrderSmoke, /missing from the Kitchen queue/);
   assert.match(page, /Accept exact quote/);
   assert.match(page, /Acceptance does not charge you/);
   assert.match(dashboard, /DELIVERY_DAY_PLANS_ENABLED \? <DeliveryDayPlanManagement \/> : <SubscriptionManagement \/>/);
