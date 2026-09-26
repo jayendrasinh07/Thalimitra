@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 
 const read = file => readFileSync(file, 'utf8');
 const app = read('src/App.tsx');
@@ -31,6 +31,11 @@ assert.match(app, /<SubscribeModal\s*\/?>/);
 assert.match(app, /case 'meal_plans':[\s\S]*case 'my_subscription':[\s\S]*<MealPlansPage/);
 assert.match(context, /tab === 'meal_plans'.*tab === 'my_subscription'.*tab === 'subscription_management'/s);
 assert.match(context, /if \(!SUBSCRIPTIONS_ENABLED\)\s*{\s*setActiveTab\('order_once'\)/s);
+assert.doesNotMatch(context, /INITIAL_USER_SUBSCRIPTION|setSubscription|createNewSubscription|pauseSubscription|skipTomorrowMeal/);
+assert.doesNotMatch(app, /MealPreferencesPage|case 'meal_preferences'/);
+assert.equal(existsSync('src/pages/CustomerDashboard.tsx'), false);
+assert.equal(existsSync('src/pages/MealPreferencesPage.tsx'), false);
+assert.equal(existsSync('src/components/public/SubscriptionWidget.tsx'), false);
 assert.match(howItWorks, /Breakfast closes at 10:00 PM the previous night\. Lunch at 10:30 AM\. Dinner at 5:30 PM\./);
 assert.match(howItWorks, /setActiveTab\('order_once'\)/);
 assert.doesNotMatch(howItWorks, /setIsSubscribeModalOpen|Subscriptions carry over|9:30 AM \(Lunch\)|5:00 PM \(Dinner\)/);

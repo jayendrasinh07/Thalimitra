@@ -66,43 +66,6 @@ export interface MealPlan {
   };
 }
 
-export interface UserSubscription {
-  id: string;
-  userId: string;
-  userName: string;
-  userPhone: string;
-  userEmail: string;
-  userSegment: CustomerSegment;
-  planId: PlanDuration;
-  planName: string;
-  slot: MealSlot;
-  dietType: DietType;
-  portionSize: PortionSize;
-  status: SubscriptionStatus;
-  startDate: string;
-  expiryDate: string;
-  totalDays: number;
-  daysRemaining: number;
-  mealsDeliveredCount: number;
-  pausedDates: string[]; // YYYY-MM-DD
-  skippedDates: string[]; // YYYY-MM-DD
-  deliveryAddress: {
-    street: string;
-    area: string;
-    sector: string;
-    pincode: string;
-    landmark?: string;
-    clusterId: string;
-    deliveryTimeSlot: string;
-  };
-  addons: {
-    extraRoti: boolean;
-    chaasDaily: boolean;
-    sweetSunday: boolean;
-  };
-  specialInstructions?: string;
-}
-
 export interface MealTraceabilityInfo {
   mealId: string;
   subscriptionId: string;

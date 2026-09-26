@@ -4,7 +4,6 @@ import {
   DeliveryCluster, 
   CorporateAccount, 
   CustomerFeedback, 
-  UserSubscription,
   KitchenBatch,
   MealTraceabilityInfo
 } from '../types';
@@ -510,37 +509,6 @@ export const MOCK_TRACEABILITY_MEAL: MealTraceabilityInfo = {
   deliveryPartnerName: 'Jayeshbhai Solanki',
   deliveryPartnerPhone: '+91 94280 55123',
   estimatedDeliveryWindow: '12:00 PM - 12:30 PM'
-};
-
-export const INITIAL_USER_SUBSCRIPTION: UserSubscription = {
-  id: '',
-  userId: '',
-  userName: '',
-  userPhone: '',
-  userEmail: '',
-  userSegment: 'individual',
-  planId: 'half_month_15',
-  planName: '15-Day Semester / Work Plan',
-  slot: 'lunch',
-  dietType: 'standard_gujarati',
-  portionSize: 'regular',
-  status: 'completed',
-  startDate: '',
-  expiryDate: '',
-  totalDays: 15,
-  daysRemaining: 0,
-  mealsDeliveredCount: 0,
-  pausedDates: [],
-  skippedDates: [],
-  deliveryAddress: {
-    street: '', area: '', sector: '', pincode: '', landmark: '', clusterId: '', deliveryTimeSlot: ''
-  },
-  addons: {
-    extraRoti: false,
-    chaasDaily: true,
-    sweetSunday: true
-  },
-  specialInstructions: ''
 };
 
 export const MOCK_KITCHEN_BATCHES: KitchenBatch[] = [

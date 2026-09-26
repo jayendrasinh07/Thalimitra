@@ -23,7 +23,6 @@ export const Navbar: React.FC = () => {
     locationState,
     detectedLocation,
     userRole,
-    subscription,
     oneTimeOrders,
     currentUser,
     userProfile,
@@ -58,7 +57,7 @@ export const Navbar: React.FC = () => {
   }
 
   // Only show Dashboard button if logged in as customer or admin
-  const isCustomerLoggedIn = userRole === 'customer' || userRole === 'admin' || (subscription?.status === 'active' && userRole !== 'guest');
+  const isCustomerLoggedIn = Boolean(currentUser && userRole === 'customer');
 
   return (
     <header className="sticky top-0 z-40 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-stone-200/80 transition-all">

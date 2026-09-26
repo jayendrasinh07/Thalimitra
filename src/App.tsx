@@ -36,7 +36,6 @@ const CorporatePage = React.lazy(() => import('./pages/CorporatePage').then((mod
 const TraceabilityPage = React.lazy(() => import('./pages/TraceabilityPage').then((module) => ({ default: module.TraceabilityPage })));
 const QualityStandardsPage = React.lazy(() => import('./pages/QualityStandardsPage').then((module) => ({ default: module.QualityStandardsPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then((module) => ({ default: module.ContactPage })));
-const MealPreferencesPage = React.lazy(() => import('./pages/MealPreferencesPage').then((module) => ({ default: module.MealPreferencesPage })));
 const OrderHistoryPage = React.lazy(() => import('./pages/OrderHistoryPage').then((module) => ({ default: module.OrderHistoryPage })));
 const DeliveryAddressesPage = React.lazy(() => import('./pages/DeliveryAddressesPage').then((module) => ({ default: module.DeliveryAddressesPage })));
 const PasswordRecoveryPage = React.lazy(() => import('./pages/PasswordRecoveryPage').then((module) => ({ default: module.PasswordRecoveryPage })));
@@ -172,8 +171,6 @@ const MainContent: React.FC = () => {
         return <ContactPage />;
       case 'customer_dashboard':
         return <NativeAccountPage />;
-      case 'meal_preferences':
-        return <MealPreferencesPage />;
       case 'order_history':
         return <OrderHistoryPage />;
       case 'delivery_addresses':

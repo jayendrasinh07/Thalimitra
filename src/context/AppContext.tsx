@@ -1,14 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import { User } from '@supabase/supabase-js';
 import { 
   UserRole, 
-  CustomerSegment, 
   PlanDuration, 
-  MealSlot, 
-  DietType, 
-  PortionSize,
-  UserSubscription,
   MealTraceabilityInfo,
   CustomerFeedback,
   KitchenBatch,
@@ -25,14 +19,11 @@ import {
   AddressLabel
 } from '../types';
 import { 
-  INITIAL_USER_SUBSCRIPTION, 
   MOCK_TRACEABILITY_MEAL, 
   CUSTOMER_FEEDBACKS, 
   MOCK_KITCHEN_BATCHES,
   MOCK_CORPORATE_ACCOUNTS,
-  MEAL_PLANS
 } from '../data/config';
-import { INITIAL_ONE_TIME_ORDERS } from '../data/orders';
 import { SUBSCRIPTIONS_ENABLED } from '../config/featureFlags';
 import { checkMealAvailability, istDate } from '../services/availabilityEngine';
 import { permissionManager } from '../services/permissionService';
@@ -76,7 +67,6 @@ export type ActiveTab =
   // Customer
   | 'customer_dashboard'
   | 'my_subscription'
-  | 'meal_preferences'
   | 'delivery_addresses'
   | 'delivery_tracking'
   | 'order_history'
@@ -111,9 +101,6 @@ interface AppContextType {
   setActiveTab: (tab: ActiveTab) => void;
   userRole: UserRole;
   setUserRole: (role: UserRole) => void;
-  subscription: UserSubscription;
-  setSubscription: React.Dispatch<React.SetStateAction<UserSubscription>>;
-  
   // One-Time Ordering System
   oneTimeOrders: OneTimeOrder[];
   activeTrackingOrder: OneTimeOrder | null;
@@ -125,15 +112,6 @@ interface AppContextType {
   cancelOneTimeOrder: (orderId: string, reason: CancellationReason, note?: string) => Promise<boolean>;
   advanceOrderStatus: (orderId: string, nextStatus: OrderStatus) => void;
 
-  // Interactive Operations
-  pauseSubscription: (daysCount?: number) => void;
-  resumeSubscription: () => void;
-  skipTomorrowMeal: (slot?: MealSlot) => void;
-  unskipMeal: (date: string) => void;
-  updatePreferences: (diet: DietType, portion: PortionSize, addons: UserSubscription['addons'], notes?: string) => void;
-  updateDeliveryAddress: (address: UserSubscription['deliveryAddress']) => void;
-  createNewSubscription: (planId: PlanDuration, segment: CustomerSegment, slot: MealSlot, diet: DietType, portion: PortionSize, address: UserSubscription['deliveryAddress'], addons: UserSubscription['addons']) => void;
-  
   // Location & Address Intelligence System
   centralLocation: CentralLocationState;
   locationState: LocationState;
@@ -268,8 +246,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (safeTab === 'todays_menu' && activeTab === 'todays_menu') scrollToPublishedMenu();
   }, [activeTab]);
   const [userRole, setUserRole] = useState<UserRole>('guest');
-  const [subscription, setSubscription] = useState<UserSubscription>(INITIAL_USER_SUBSCRIPTION);
-
   const [oneTimeOrders, setOneTimeOrders] = useState<OneTimeOrder[]>([]);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<OneTimeOrder|null>(null);
   const [isOrderOnceModalOpen, setIsOrderOnceModalOpen] = useState<boolean>(false);
@@ -323,7 +299,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const authGeneration = useRef(0);
   const authIdentity = useRef<string|null>(null);
   const clearCustomerData = useCallback(() => {
-    setSubscription(INITIAL_USER_SUBSCRIPTION);setOneTimeOrders([]);setActiveTrackingOrder(null);setSavedAddresses([]);setActiveDeliveryAddress(EMPTY_DELIVERY_ADDRESS);setDefaultAddressIdState('');
+    setOneTimeOrders([]);
+    setActiveTrackingOrder(null);
+    setSavedAddresses([]);
+    setActiveDeliveryAddress(EMPTY_DELIVERY_ADDRESS);
+    setDefaultAddressIdState('');
     setCentralLocation(getInitialCentralLocationState());setDetectedLocation(null);setUserProfile(null);setUserRolesList([]);setUserRole('guest');
     for(const key of ['teffein_user_role','teffein_onetime_orders','teffein_saved_customer_orders','teffein_saved_addresses','teffein_mock_auth_session','teffein_sub'])localStorage.removeItem(key);
     sessionStorage.removeItem('teffein_active_delivery_location');
@@ -663,20 +643,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       serviceable: address.isServiceable
     }));
 
-    // Sync to subscription address
-    setSubscription((prev) => ({
-      ...prev,
-      deliveryAddress: {
-        street: address.addressLine1 || address.addressLine || '',
-        area: address.area,
-        sector: address.sector || address.area,
-        pincode: address.pincode,
-        landmark: address.landmark || '',
-        clusterId: address.clusterId || 'cluster-a',
-        deliveryTimeSlot: prev.deliveryAddress.deliveryTimeSlot
-      }
-    }));
-
     showToast('Delivery Location Selected', `${address.label}: ${address.area} (${address.pincode})`, 'info');
   }, []);
 
@@ -811,82 +777,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   const advanceOrderStatus = (_orderId:string,_nextStatus:OrderStatus) => {showToast('Status not changed','Use the kitchen workflow to update preparation status.','info');};
 
-  const pauseSubscription = (daysCount = 3) => {
-    const today = new Date().toISOString().split('T')[0];
-    setSubscription((prev) => ({
-      ...prev,
-      status: 'paused',
-      pausedDates: [...prev.pausedDates, today]
-    }));
-    showToast(
-      'Subscription Paused',
-      `Your subscription is safely paused. Your remaining ${subscription.daysRemaining} days are protected and will resume whenever you are ready.`,
-      'info'
-    );
-  };
-
-  const resumeSubscription = () => {
-    setSubscription((prev) => ({
-      ...prev,
-      status: 'active'
-    }));
-    showToast(
-      'Welcome Back!',
-      'Your meal routine has resumed. Tomorrow’s fresh home meal will be dispatched on schedule.',
-      'success'
-    );
-  };
-
-  const skipTomorrowMeal = (slot: MealSlot = 'lunch') => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-    setSubscription((prev) => {
-      const alreadySkipped = prev.skippedDates.includes(tomorrowStr);
-      if (alreadySkipped) return prev;
-      return {
-        ...prev,
-        skippedDates: [...prev.skippedDates, tomorrowStr],
-        daysRemaining: prev.daysRemaining + 1 // rollover credit day!
-      };
-    });
-
-    showToast(
-      'Tomorrow’s Meal Skipped',
-      `Meal for ${tomorrowStr} (${slot}) skipped. We added +1 day credit to your subscription balance!`,
-      'warning'
-    );
-  };
-
-  const unskipMeal = (dateStr: string) => {
-    setSubscription((prev) => ({
-      ...prev,
-      skippedDates: prev.skippedDates.filter((d) => d !== dateStr),
-      daysRemaining: Math.max(1, prev.daysRemaining - 1)
-    }));
-    showToast('Meal Restored', `Meal on ${dateStr} is back on your active delivery schedule.`, 'success');
-  };
-
-  const updatePreferences = (diet: DietType, portion: PortionSize, addons: UserSubscription['addons'], notes?: string) => {
-    setSubscription((prev) => ({
-      ...prev,
-      dietType: diet,
-      portionSize: portion,
-      addons,
-      specialInstructions: notes !== undefined ? notes : prev.specialInstructions
-    }));
-    showToast('Preferences Saved', 'Your kitchen kitchen profile and spice preferences have been updated.', 'success');
-  };
-
-  const updateDeliveryAddress = (address: UserSubscription['deliveryAddress']) => {
-    setSubscription((prev) => ({
-      ...prev,
-      deliveryAddress: address
-    }));
-    showToast('Address Updated', `Delivery cluster assigned: ${address.clusterId}. Delivery window updated.`, 'success');
-  };
-
   const openCheckoutForPlan = (planId: PlanDuration) => {
     if (!SUBSCRIPTIONS_ENABLED) {
       setActiveTab('order_once');
@@ -894,62 +784,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     setSelectedPlanForCheckout(planId);
     setIsSubscribeModalOpen(true);
-  };
-
-  const createNewSubscription = (
-    planId: PlanDuration,
-    segment: CustomerSegment,
-    slot: MealSlot,
-    diet: DietType,
-    portion: PortionSize,
-    address: UserSubscription['deliveryAddress'],
-    addons: UserSubscription['addons']
-  ) => {
-    const planObj = MEAL_PLANS.find((p) => p.id === planId) || MEAL_PLANS[2];
-    const newSub: UserSubscription = {
-      id: `SUB-GJ-${Math.floor(1000 + Math.random() * 9000)}`,
-      userId: 'USR-892',
-      userName: 'Aarav Patel',
-      userPhone: '+91 98254 99120',
-      userEmail: 'aarav.patel.pdpu@gmail.com',
-      userSegment: segment,
-      planId: planId,
-      planName: planObj.name,
-      slot: slot,
-      dietType: diet,
-      portionSize: portion,
-      status: 'active',
-      startDate: new Date().toISOString().split('T')[0],
-      expiryDate: new Date(Date.now() + planObj.totalMeals * 86400000).toISOString().split('T')[0],
-      totalDays: planObj.totalMeals,
-      daysRemaining: planObj.totalMeals,
-      mealsDeliveredCount: 0,
-      pausedDates: [],
-      skippedDates: [],
-      deliveryAddress: address,
-      addons: addons
-    };
-
-    setSubscription(newSub);
-    setIsSubscribeModalOpen(false);
-
-    try {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-    } catch (e) {
-      // ignore
-    }
-
-    showToast(
-      'Meal Plan Activated!',
-      `Congratulations! Your ${planObj.name} is active. Your first hot meal arrives tomorrow between ${address.deliveryTimeSlot}.`,
-      'success'
-    );
-
-    setActiveTab('customer_dashboard');
   };
 
   const lookupMealTraceability = (mealId: string) => {
@@ -972,9 +806,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const submitCustomerFeedback = (rating: number, comment: string, tags: string[]) => {
     const newFb: CustomerFeedback = {
       id: `FB-${Math.random().toString(36).substring(2, 6)}`,
-      customerName: subscription.userName || 'Aarav Patel',
+      customerName: userProfile?.fullName || currentUser?.email || 'Customer',
       customerRole: 'Subscriber, Gandhinagar',
-      sectorOrArea: `${subscription.deliveryAddress.area}, Gandhinagar`,
+      sectorOrArea: `${activeDeliveryAddress.area || 'Gandhinagar'}, Gandhinagar`,
       mealId: 'GDM-2841',
       date: 'Just now',
       rating,
@@ -1011,8 +845,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTab,
         userRole,
         setUserRole,
-        subscription,
-        setSubscription,
         oneTimeOrders,
         activeTrackingOrder,
         setActiveTrackingOrder,
@@ -1022,13 +854,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         reorderMeal,
         cancelOneTimeOrder,
         advanceOrderStatus,
-        pauseSubscription,
-        resumeSubscription,
-        skipTomorrowMeal,
-        unskipMeal,
-        updatePreferences,
-        updateDeliveryAddress,
-        createNewSubscription,
         isSubscribeModalOpen,
         setIsSubscribeModalOpen,
         selectedPlanForCheckout,
