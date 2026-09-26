@@ -1,6 +1,6 @@
 import { ArrowLeft, CalendarDays, ChevronDown, ClipboardList, House, LocateFixed, MapPin, Menu as MenuIcon, UserRound } from 'lucide-react';
 import { useApp, type ActiveTab } from '../../context/AppContext';
-import { getAddressCompactLine } from '../../utils/addressDisplay';
+import { getAddressPrimaryLine } from '../../utils/addressDisplay';
 import { NotificationBell } from '../notifications/NotificationBell';
 
 const tabs: Array<{ id: ActiveTab; label: string; icon: typeof House }> = [
@@ -14,6 +14,7 @@ const tabs: Array<{ id: ActiveTab; label: string; icon: typeof House }> = [
 export const NativeNavigation = () => {
   const { activeTab, setActiveTab, setIsLocationModalOpen, centralLocation, activeDeliveryAddress } = useApp();
   const isPrimary = tabs.some(tab => tab.id === activeTab);
+  const showLocation = activeTab === 'home' || activeTab === 'todays_menu';
   const confirmedAddress = centralLocation?.confirmedAddress || (activeDeliveryAddress?.id ? activeDeliveryAddress : null);
   const isDetectingLocation = centralLocation?.detectionStatus === 'requesting' || centralLocation?.detectionStatus === 'detecting';
   const hasConfirmedLocation = Boolean(confirmedAddress || centralLocation?.isAddressConfirmed);
@@ -21,7 +22,7 @@ export const NativeNavigation = () => {
     ? confirmedAddress.customLabel || confirmedAddress.label || 'Delivery location'
     : hasConfirmedLocation ? 'Delivery location' : 'Choose delivery location';
   const locationDetail = isDetectingLocation ? 'Checking nearby delivery availability…' : confirmedAddress
-    ? getAddressCompactLine(confirmedAddress)
+    ? getAddressPrimaryLine(confirmedAddress)
     : hasConfirmedLocation
       ? centralLocation?.formattedAddress || centralLocation?.sector || centralLocation?.area || 'Gandhinagar'
       : 'Check if we deliver to your address';
@@ -36,32 +37,29 @@ export const NativeNavigation = () => {
   };
 
   return <>
-    <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-stone-100 bg-white/95 px-4 py-2 backdrop-blur-md">
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center gap-3">
           {!isPrimary && <button type="button" aria-label="Back" onClick={() => activeTab === 'order_once' ? window.dispatchEvent(new Event('thalimitra:native-back')) : navigate('customer_dashboard')}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-stone-200 text-stone-800">
             <ArrowLeft className="h-5 w-5" />
           </button>}
-          <div className="min-w-0 flex-1">
+          {showLocation ? <button type="button" onClick={() => setIsLocationModalOpen(true)}
+            aria-label={`Change delivery location. ${locationTitle}. ${locationDetail}`}
+            aria-haspopup="dialog"
+            className="flex min-h-12 min-w-0 flex-1 flex-col justify-center rounded-lg py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 active:opacity-70">
+            <span className="flex w-full min-w-0 items-center gap-1.5 leading-5">
+              {isDetectingLocation ? <LocateFixed className="h-4 w-4 shrink-0 text-emerald-700 motion-safe:animate-pulse" aria-hidden="true" /> : <MapPin className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />}
+              {hasConfirmedLocation && !isDetectingLocation && <span className="shrink-0 text-xs font-medium text-stone-500">Deliver to ·</span>}
+              <span className="truncate text-sm font-bold text-stone-900">{locationTitle}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
+            </span>
+            <span className="mt-0.5 block w-full truncate pl-[22px] text-xs leading-4 text-stone-600">{locationDetail}</span>
+          </button> : <div className="min-w-0 flex-1">
             <div className="text-lg font-black leading-tight text-stone-900">{title}</div>
-            {activeTab === 'home' && <div className="text-xs font-semibold text-emerald-800">Khana jo roz apna lage.</div>}
-          </div>
+          </div>}
           {activeTab !== 'order_once' && <NotificationBell compact />}
         </div>
-        {(activeTab === 'home' || activeTab === 'todays_menu') &&
-          <button type="button" onClick={() => setIsLocationModalOpen(true)} aria-label={`Change delivery location. ${locationTitle}. ${locationDetail}`}
-            className={`group mt-2.5 flex min-h-[60px] w-full items-center gap-3 rounded-[18px] border px-3 py-2 text-left shadow-[0_1px_3px_rgba(28,25,23,0.05)] transition duration-200 active:scale-[0.99] ${hasConfirmedLocation ? 'border-emerald-100 bg-gradient-to-r from-emerald-50 to-white' : 'border-stone-200 bg-stone-50'}`}>
-            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border bg-white shadow-sm ${hasConfirmedLocation ? 'border-emerald-100 text-[#0D6E44]' : 'border-stone-200 text-stone-600'}`}>
-              {isDetectingLocation ? <LocateFixed className="h-5 w-5 motion-safe:animate-pulse" aria-hidden="true" /> : <MapPin className="h-5 w-5" aria-hidden="true" />}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Deliver to</span>
-              <span className="mt-0.5 block truncate text-sm font-black leading-tight text-stone-900">{locationTitle}</span>
-              <span className="mt-0.5 block truncate text-[11px] font-medium leading-tight text-stone-500">{locationDetail}</span>
-            </span>
-            <ChevronDown className="h-4 w-4 shrink-0 text-stone-400 transition-transform group-active:translate-y-0.5" aria-hidden="true" />
-          </button>}
       </div>
     </header>
     {isPrimary && <nav aria-label="Main app navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.07)] backdrop-blur-md">
