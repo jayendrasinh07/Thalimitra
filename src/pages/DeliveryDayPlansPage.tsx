@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, CalendarDays, RefreshCw, ShieldCheck, UtensilsCrossed } from 'lucide-react';
+import { ArrowRight, CalendarDays, CheckCircle2, RefreshCw, ShieldCheck, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { deliveryDayPlanService, type DeliveryDayPlan, type DeliveryDayPlanTemplate } from '../services/deliveryDayPlanService';
 
@@ -7,12 +7,15 @@ const statusLabel: Record<DeliveryDayPlan['status'], string> = {
   requested: 'Under review', quoted: 'Quote ready', accepted: 'Quote accepted', payment_pending: 'Awaiting payment',
   active: 'Active', paused: 'Paused', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Unavailable',
 };
+const money = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value);
+const dateTime = (value: string) => new Date(value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
 
 export const DeliveryDayPlansPage: React.FC = () => {
   const { currentUser, openCheckoutForPlan, showToast } = useApp();
   const [templates, setTemplates] = useState<DeliveryDayPlanTemplate[]>([]);
   const [mine, setMine] = useState<DeliveryDayPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,6 +39,17 @@ export const DeliveryDayPlansPage: React.FC = () => {
   }, [load]);
 
   const openRequest = mine.some(item => ['requested', 'quoted', 'accepted', 'payment_pending', 'active', 'paused'].includes(item.status));
+  const respond = async (item: DeliveryDayPlan, decision: 'accept' | 'decline') => {
+    if (!item.current_quote || busy) return;
+    setBusy(item.id);
+    try {
+      await deliveryDayPlanService.respondToQuote(item.id, item.current_quote.id, decision);
+      showToast(decision === 'accept' ? 'Quote accepted' : 'Quote declined', decision === 'accept' ? 'Payment is still pending. No charge has been made.' : 'This plan request is now closed.', 'success');
+      await load();
+    } catch (reason) {
+      showToast('Quote was not updated', reason instanceof Error ? reason.message : 'Try again shortly.', 'error');
+    } finally { setBusy(null); }
+  };
 
   return <div className="min-h-[80vh] bg-[#FAF8F5] py-5 sm:py-12">
     <div className="mx-auto max-w-6xl space-y-7 px-4 sm:space-y-9 sm:px-6">
@@ -48,7 +62,12 @@ export const DeliveryDayPlansPage: React.FC = () => {
 
       {currentUser && <section id="my-delivery-day-plans" className="scroll-mt-24 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-emerald-700">Your plans</p><h2 className="mt-1 text-xl font-black text-stone-900">Requests and active plans</h2></div><button type="button" onClick={() => void load()} disabled={loading} aria-label="Refresh plan status" className="grid h-10 w-10 place-items-center rounded-xl border border-stone-200 text-stone-600"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button></div>
-        <div className="mt-4 space-y-3">{!loading && mine.length === 0 && <p className="rounded-2xl bg-stone-50 p-4 text-sm text-stone-500">You have no delivery-day plan request yet.</p>}{mine.map(item => <article key={item.id} className="rounded-2xl border border-stone-200 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-black text-stone-900">{item.plan_name}</h3><p className="mt-1 text-sm font-bold capitalize text-emerald-800">{item.meal_types.join(' + ')} · {item.meals_per_delivery_day} meal{item.meals_per_delivery_day === 1 ? '' : 's'}/day</p><p className="mt-1 text-xs text-stone-500">{item.delivery_days} delivery days · {item.total_meal_occurrences} meals total</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${item.status === 'active' ? 'bg-emerald-100 text-emerald-800' : item.status === 'payment_pending' ? 'bg-amber-100 text-amber-900' : 'bg-stone-100 text-stone-700'}`}>{statusLabel[item.status]}</span></div></article>)}</div>
+        <div className="mt-4 space-y-3">{!loading && mine.length === 0 && <p className="rounded-2xl bg-stone-50 p-4 text-sm text-stone-500">You have no delivery-day plan request yet.</p>}{mine.map(item => <article key={item.id} className="rounded-2xl border border-stone-200 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-black text-stone-900">{item.plan_name}</h3><p className="mt-1 text-sm font-bold capitalize text-emerald-800">{item.meal_types.join(' + ')} · {item.meals_per_delivery_day} meal{item.meals_per_delivery_day === 1 ? '' : 's'}/day</p><p className="mt-1 text-xs text-stone-500">{item.delivery_days} delivery days · {item.total_meal_occurrences} meals total</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${item.status === 'active' ? 'bg-emerald-100 text-emerald-800' : item.status === 'payment_pending' || item.status === 'accepted' ? 'bg-amber-100 text-amber-900' : 'bg-stone-100 text-stone-700'}`}>{statusLabel[item.status]}</span></div>
+          {item.current_quote && <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-emerald-800">Itemized quote · v{item.current_quote.version}</p><p className="mt-1 text-xs text-stone-500">{item.current_quote.valid_until ? `Valid until ${dateTime(item.current_quote.valid_until)}` : 'Validity not set'}</p></div><p className="text-xl font-black text-emerald-900">{money(item.current_quote.total_amount)}</p></div><div className="mt-3 space-y-2 border-y border-emerald-100 py-3">{item.current_quote.items.map(line => <div key={line.id} className="flex justify-between gap-4 text-xs"><span className="text-stone-600">{line.label}{line.item_type === 'service' ? ` · ${line.quantity} × ${money(line.unit_amount)}` : ''}</span><strong className="text-stone-900">{money(line.line_amount)}</strong></div>)}</div>
+            {item.current_quote.status === 'offered' && <><p className="mt-3 text-xs leading-5 text-stone-600">Accept only after checking every service, quantity and amount. Acceptance does not charge you.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><button type="button" disabled={busy === item.id} onClick={() => void respond(item, 'accept')} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#0D6E44] px-4 text-sm font-black text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />Accept exact quote</button><button type="button" disabled={busy === item.id} onClick={() => void respond(item, 'decline')} className="min-h-11 rounded-xl border border-red-200 bg-white px-4 text-sm font-bold text-red-700 disabled:opacity-50">Decline and close request</button></div></>}
+            {item.current_quote.status === 'accepted' && <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold text-emerald-900"><CheckCircle2 className="mr-1 inline h-4 w-4" />Accepted. Payment is still pending; no automatic charge was made.</p>}
+          </div>}
+        </article>)}</div>
       </section>}
 
       <section aria-labelledby="delivery-plan-heading"><div className="mb-5"><h2 id="delivery-plan-heading" className="text-2xl font-black text-stone-900 sm:text-3xl">Choose your delivery-day plan</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-stone-600">A delivery day can include one, two or three selected meal services. The review screen calculates the complete quantity.</p></div>

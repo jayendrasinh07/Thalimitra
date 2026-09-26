@@ -3,6 +3,35 @@ import type { DeliveryDayPlanCode, ServiceMealType } from '../types';
 
 export type DeliveryDayPlanStatus = 'requested' | 'quoted' | 'accepted' | 'payment_pending' | 'active' | 'paused' | 'completed' | 'cancelled' | 'rejected';
 export type DeliveryDayPlanPaymentStatus = 'pending' | 'paid' | 'refunded' | 'partially_refunded';
+export type DeliveryDayPlanQuoteStatus = 'draft' | 'offered' | 'accepted' | 'declined' | 'expired' | 'superseded';
+export type DeliveryDayPlanQuoteItemType = 'service' | 'delivery' | 'discount' | 'tax' | 'adjustment';
+
+export interface DeliveryDayPlanQuoteItem {
+  id: string;
+  item_type: DeliveryDayPlanQuoteItemType;
+  meal_type: ServiceMealType | null;
+  label: string;
+  quantity: number;
+  unit_amount: number;
+  line_amount: number;
+}
+
+export interface DeliveryDayPlanQuote {
+  id: string;
+  version: number;
+  status: DeliveryDayPlanQuoteStatus;
+  currency: 'INR';
+  subtotal_amount: number;
+  discount_amount: number;
+  delivery_fee: number;
+  tax_amount: number;
+  total_amount: number;
+  valid_until: string | null;
+  offered_at: string | null;
+  accepted_at: string | null;
+  declined_at: string | null;
+  items: DeliveryDayPlanQuoteItem[];
+}
 
 export interface DeliveryDayPlanTemplate {
   code: DeliveryDayPlanCode;
@@ -45,14 +74,8 @@ export interface DeliveryDayPlan {
   weekdays_by_service: Partial<Record<ServiceMealType, number[]>>;
   meals_per_delivery_day: number;
   total_meal_occurrences: number;
-  accepted_quote: null | {
-    id: string;
-    version: number;
-    status: string;
-    currency: 'INR';
-    total_amount: number;
-    accepted_at: string | null;
-  };
+  current_quote: DeliveryDayPlanQuote | null;
+  accepted_quote: DeliveryDayPlanQuote | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +85,7 @@ export class DeliveryDayPlanError extends Error {
   constructor(code: string, message?: string) {
     super(code === '42501' ? 'Sign in with a customer account.'
       : code === '23505' ? 'You already have an open delivery-day plan request.'
+      : code === 'P0002' ? 'This delivery-day plan request was not found.'
       : code === '22023' ? message || 'Check your plan choices and try again.'
       : message || 'Delivery-day plans could not be reached. Try again.');
     this.code = code;
@@ -72,6 +96,8 @@ const planCodes: DeliveryDayPlanCode[] = ['starter_7_days', 'regular_15_days', '
 const mealTypes: ServiceMealType[] = ['breakfast', 'lunch', 'dinner'];
 const statuses: DeliveryDayPlanStatus[] = ['requested', 'quoted', 'accepted', 'payment_pending', 'active', 'paused', 'completed', 'cancelled', 'rejected'];
 const paymentStatuses: DeliveryDayPlanPaymentStatus[] = ['pending', 'paid', 'refunded', 'partially_refunded'];
+const quoteStatuses: DeliveryDayPlanQuoteStatus[] = ['draft', 'offered', 'accepted', 'declined', 'expired', 'superseded'];
+const quoteItemTypes: DeliveryDayPlanQuoteItemType[] = ['service', 'delivery', 'discount', 'tax', 'adjustment'];
 
 const rpc = async (name: string, args?: Record<string, unknown>): Promise<unknown> => {
   const { data, error } = await getSupabaseClient().rpc(name as never, args as never);
@@ -87,7 +113,37 @@ const parseTemplate = (value: any): DeliveryDayPlanTemplate => {
   return { ...value, delivery_days: Number(value.delivery_days) } as DeliveryDayPlanTemplate;
 };
 
-const parsePlan = (value: any): DeliveryDayPlan => {
+const parseQuote = (value: any): DeliveryDayPlanQuote | null => {
+  if (value == null) return null;
+  if (typeof value.id !== 'string' || !Number.isInteger(Number(value.version))
+    || !quoteStatuses.includes(value.status) || value.currency !== 'INR'
+    || !Array.isArray(value.items)) throw new DeliveryDayPlanError('INVALID_RESPONSE');
+  const amountFields = ['subtotal_amount', 'discount_amount', 'delivery_fee', 'tax_amount', 'total_amount'] as const;
+  if (amountFields.some(field => !Number.isFinite(Number(value[field])) || Number(value[field]) < 0)) {
+    throw new DeliveryDayPlanError('INVALID_RESPONSE');
+  }
+  const items = value.items.map((item: any): DeliveryDayPlanQuoteItem => {
+    if (!item || typeof item.id !== 'string' || !quoteItemTypes.includes(item.item_type)
+      || (item.meal_type != null && !mealTypes.includes(item.meal_type))
+      || typeof item.label !== 'string' || !Number.isInteger(Number(item.quantity))
+      || !Number.isFinite(Number(item.unit_amount)) || !Number.isFinite(Number(item.line_amount))) {
+      throw new DeliveryDayPlanError('INVALID_RESPONSE');
+    }
+    return { ...item, quantity: Number(item.quantity), unit_amount: Number(item.unit_amount), line_amount: Number(item.line_amount) };
+  });
+  return {
+    ...value,
+    version: Number(value.version),
+    subtotal_amount: Number(value.subtotal_amount),
+    discount_amount: Number(value.discount_amount),
+    delivery_fee: Number(value.delivery_fee),
+    tax_amount: Number(value.tax_amount),
+    total_amount: Number(value.total_amount),
+    items,
+  } as DeliveryDayPlanQuote;
+};
+
+export const parseDeliveryDayPlan = (value: any): DeliveryDayPlan => {
   if (!value || typeof value.id !== 'string' || !planCodes.includes(value.template_code)
     || typeof value.plan_name !== 'string' || ![7, 15, 30].includes(Number(value.delivery_days))
     || !statuses.includes(value.status) || !paymentStatuses.includes(value.payment_status)
@@ -103,11 +159,8 @@ const parsePlan = (value: any): DeliveryDayPlan => {
     delivery_days: Number(value.delivery_days),
     meals_per_delivery_day: Number(value.meals_per_delivery_day),
     total_meal_occurrences: Number(value.total_meal_occurrences),
-    accepted_quote: value.accepted_quote ? {
-      ...value.accepted_quote,
-      version: Number(value.accepted_quote.version),
-      total_amount: Number(value.accepted_quote.total_amount),
-    } : null,
+    current_quote: parseQuote(value.current_quote),
+    accepted_quote: parseQuote(value.accepted_quote),
   } as DeliveryDayPlan;
 };
 
@@ -149,7 +202,7 @@ export const deliveryDayPlanService = {
     const data = await rpc('get_my_delivery_day_plans');
     const rows = Array.isArray(data) ? data : null;
     if (!rows) throw new DeliveryDayPlanError('INVALID_RESPONSE');
-    return rows.map(parsePlan);
+    return rows.map(parseDeliveryDayPlan);
   },
   async preview(input: {
     templateCode: DeliveryDayPlanCode;
@@ -175,7 +228,7 @@ export const deliveryDayPlanService = {
     requestIdempotencyKey: string;
     note?: string;
   }): Promise<DeliveryDayPlan> {
-    return parsePlan(await rpc('request_delivery_day_plan', {
+    return parseDeliveryDayPlan(await rpc('request_delivery_day_plan', {
       p_template_code: input.templateCode,
       p_meal_types: input.mealTypes,
       p_weekdays: input.weekdays,
@@ -183,6 +236,13 @@ export const deliveryDayPlanService = {
       p_preferred_start_date: input.preferredStartDate,
       p_request_idempotency_key: input.requestIdempotencyKey,
       p_customer_note: input.note?.trim() || null,
+    }));
+  },
+  async respondToQuote(subscriptionId: string, quoteId: string, decision: 'accept' | 'decline'): Promise<DeliveryDayPlan> {
+    return parseDeliveryDayPlan(await rpc('respond_delivery_day_plan_quote', {
+      p_subscription_id: subscriptionId,
+      p_quote_id: quoteId,
+      p_decision: decision,
     }));
   },
 };

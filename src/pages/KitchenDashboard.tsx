@@ -35,6 +35,8 @@ import { KitchenManagement } from '../components/kitchen/KitchenManagement';
 import { KitchenBusinessAnalytics } from '../components/kitchen/KitchenBusinessAnalytics';
 import { PromotionManagement } from '../components/kitchen/PromotionManagement';
 import { SubscriptionManagement } from '../components/kitchen/SubscriptionManagement';
+import { DeliveryDayPlanManagement } from '../components/kitchen/DeliveryDayPlanManagement';
+import { DELIVERY_DAY_PLANS_ENABLED } from '../config/featureFlags';
 import { istDate } from '../services/availabilityEngine';
 import { kitchenService, type KitchenOrder, type KitchenRealtimeStatus, type KitchenShift, type KitchenStatus } from '../services/kitchenService';
 import { createKitchenQueue, emptyKitchenQueue, type KitchenQueueState } from '../services/kitchenQueue';
@@ -318,7 +320,7 @@ export const KitchenDashboard: React.FC = () => {
             ? <PromotionManagement />
             : <div role="alert" className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm"><ShieldCheck className="mx-auto h-9 w-9 text-red-700" /><h2 className="mt-3 text-xl font-black text-stone-900">Admin access required</h2><p className="mt-2 text-sm text-stone-500">Pricing & Offers is available only to an account with the admin role.</p><button type="button" onClick={() => setWorkspace('overview')} className="mt-5 min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white">Back to Kitchen overview</button></div>)}
           {workspace === 'subscriptions' && (hasAdminAccess
-            ? <SubscriptionManagement />
+            ? (DELIVERY_DAY_PLANS_ENABLED ? <DeliveryDayPlanManagement /> : <SubscriptionManagement />)
             : <div role="alert" className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm"><ShieldCheck className="mx-auto h-9 w-9 text-red-700" /><h2 className="mt-3 text-xl font-black text-stone-900">Admin access required</h2><p className="mt-2 text-sm text-stone-500">Subscriptions are available only to an account with the admin role.</p><button type="button" onClick={() => setWorkspace('overview')} className="mt-5 min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white">Back to Kitchen overview</button></div>)}
           {workspace === 'management' && (hasAdminAccess
             ? <KitchenManagement />
